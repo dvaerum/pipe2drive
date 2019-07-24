@@ -15,15 +15,21 @@ use std::borrow::BorrowMut;
 
 pub fn upload(hub: &HubType, size: usize, file_name: Option<&str>, parent_folder_id: Option<&str>, duplicate: bool, replace: bool) {
     let mut file_filter = Vec::new();
-    if file_name.is_some() && (!duplicate || replace) {
+    if file_name.is_some() && !duplicate {
         file_filter = misc::file_filter(
             format!(r#"^{}(\.0+)?$"#, regex::escape(file_name.as_ref().unwrap())).as_str(),
             &list(&hub, parent_folder_id)
         );
-        if file_filter.len() > 0 {
+        if file_filter.len() > 0 && !replace {
             error!("The file '{}' already exist, use the replace flag (--replace) if you want to replace this file, or use the duplicate flag (--duplicate) if you don't care that multiple files have the same file_name",
                    file_name.as_ref().unwrap());
             exit(misc::EXIT_CODE_008);
+        }
+    }
+
+    if replace {
+        for file in &file_filter {
+            delete(hub,file)
         }
     }
 
@@ -46,12 +52,6 @@ pub fn upload(hub: &HubType, size: usize, file_name: Option<&str>, parent_folder
                 req.name = Some(format!("{}.{count:0>3}", file_name.unwrap(), count = count));
             } else {
                 req.name = Some(file_name.unwrap().to_owned());
-            }
-        }
-
-        if replace {
-            for file in &file_filter {
-               delete(hub,file.name.as_ref().unwrap())
             }
         }
 
@@ -140,13 +140,13 @@ pub fn list(hub: &HubType, parent_folder_id: Option<&str>) -> Vec<File> {
     files
 }
 
-fn delete(hub: &HubType, file: &str) {
-    hub.files().delete(&file)
+fn delete(hub: &HubType, file: &File) {
+    hub.files().delete(file.id.as_ref().unwrap())
         .supports_all_drives(true)
         .doit()
         .unwrap_or_else(|e| {
-            error!("Failed at deleting the file '{}' - {}", &file, e);
+            error!("Failed at deleting the file '{}' - {}", file.name.as_ref().unwrap(), e);
             exit(misc::EXIT_CODE_009);
         });
-    info!("Deleted '{}", &file)
+    info!("Deleted '{}", file.name.as_ref().unwrap())
 }

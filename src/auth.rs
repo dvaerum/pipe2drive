@@ -20,7 +20,7 @@ use super::misc;
 
 
 const CLIENT_SECRET_FILE: &'static str = "client_secret.json";
-const CLIENT_TOKEN_FILE: &'static str = "token_store.json";
+const CLIENT_TOKEN_FILE: &'static str = "client_token.json";
 
 
 // reads the provided example client secret, the quick and dirty way.
