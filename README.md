@@ -1,4 +1,4 @@
-# pipe2drive
+﻿# pipe2drive
 pipe2drive is a simple program I wrote for myself, because I wanted a way to create a tarball of my files and upload them to Google Drive without having to store the tarball on my system. I didn't want to store the tarball on my system because that would require around as much free space as the data itself, since it wasn't compressible.
 
 ## How the program works
@@ -6,11 +6,11 @@ You need a credential from Google before you can use pipe2drive. When created, y
 
 The first time using pipe2drive, you will have to create a token. This token is stored here `~/.config/pipe2drive/client_token.json` or you can pick a different location by using the option `--token <FILE>`
 
-When using pipe to upload a file to Drive to one think you have to do is the select the size of the file you are uploading. Of course, you may not know the size, since you are probably uploading data while it is being created. That is okay you can use an estimate.
+When using pipe to upload a file to Drive. One thing you have to do is selecting the size of the file you are uploading. Of course, you may not know the size since you are probably uploading data while it is being created. That is okay, you can use an estimate.
 
-If the data you are uploading is bigger then you estimate, multiple files will be uploaded. The first file will be renamed to FILE_NAME.000, the next file will be name FILE_NAME.001 and so on until all the data is uploaded.
+If the data you are uploading is bigger than you estimated, multiple files will be uploaded. The first file will be renamed to FILE_NAME.000, the next file will be named FILE_NAME.001 and so on until all the data is uploaded.
 
-If the data is less when you estimated, the file will be uploaded and the difference between you estimated and the acctually size will be fill with the value NULL (0x00). This has to happen in order to complete the upload.
+If the data is less than you estimated, the file will be uploaded and the difference between what you estimated and the actual size will be filled with the value NULLs (0x00). This has to happen in order to complete the upload.
 
 
 ## Help Menu
@@ -25,7 +25,7 @@ USAGE:
 FLAGS:
         --duplicate    Allow multiple files to have the same name
     -h, --help         Prints help information
-        --replace      If a file exist with the same name it will be replaced
+        --replace      If a file exists with the same name it will be replaced
     -V, --version      Prints version information
 
 OPTIONS:
@@ -33,7 +33,7 @@ OPTIONS:
                               https://console.developers.google.com/apis/credentials
         --token <FILE>        Select the file/there the file containing the client token is/should be saved
     -n, --name <FILE NAME>    The name of the file uploaded to Google Drive
-        --folder <ID>         The ID of the folder there you want to file to be uploaded to.
+        --folder <ID>         The ID of the folder where you want the file to be uploaded to.
                               If this is not defined, the file will be uploaded to 'My Drive'
 
 ARGS:

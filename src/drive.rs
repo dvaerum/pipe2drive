@@ -17,7 +17,7 @@ pub fn upload(hub: &HubType, size: usize, file_name: Option<&str>, parent_folder
     let mut file_filter = Vec::new();
     if file_name.is_some() && !duplicate {
         file_filter = misc::file_filter(
-            format!(r#"^{}(\.0+)?$"#, regex::escape(file_name.as_ref().unwrap())).as_str(),
+            format!(r#"^{}(\.[0-9]+)?$"#, regex::escape(file_name.as_ref().unwrap())).as_str(),
             &list(&hub, parent_folder_id)
         );
         if file_filter.len() > 0 && !replace {
