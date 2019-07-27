@@ -3,4 +3,4 @@
 /.idea
 Cargo.lock
 pipe2drive.iml
-
+*.snap
