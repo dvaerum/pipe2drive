@@ -1,4 +1,5 @@
-﻿# pipe2drive
+[![Snap Status](https://build.snapcraft.io/badge/dvaerum/pipe2drive.svg)](https://build.snapcraft.io/user/dvaerum/pipe2drive)
+# pipe2drive
 pipe2drive is a simple program I wrote for myself, because I wanted a way to create a tarball of my files and upload them to Google Drive without having to store the tarball on my system. I didn't want to store the tarball on my system because that would require around as much free space as the data itself, since it wasn't compressible.
 
 ## How the program works
