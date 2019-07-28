@@ -13,11 +13,9 @@ confinement: strict
 parts:
   pipe2drive:
     plugin: rust
-    override-build: |
-      [ -f "$SNAPCRAFT_PART_INSTALL/bin/${SNAP_NAME}" ] && rm "$SNAPCRAFT_PART_INSTALL/bin/${SNAP_NAME}"
-      snapcraftctl build
-
     source: .
+    build-environment:
+      - RUST_BACKTRACE: '1'
     stage-packages:
       - libssl-dev
       - pkg-config
