@@ -6,7 +6,8 @@ pub struct PipeBuffer<R> {
     inner: R,
     upload_counter: usize,
     max_size: usize,
-    eop: bool
+    eop: bool,
+    count_nulls: usize,
 }
 
 impl<R: Read> PipeBuffer<R> {
@@ -15,12 +16,17 @@ impl<R: Read> PipeBuffer<R> {
             inner: buf,
             upload_counter: 0,
             max_size: size,
-            eop: false
+            eop: false,
+            count_nulls: 0
         }
     }
 
     pub fn is_there_more(&self) -> bool {
         !self.eop
+    }
+
+    pub fn nulls(&self) -> u64 {
+        self.count_nulls as u64
     }
 }
 
@@ -48,6 +54,8 @@ impl<R: Read> Read for PipeBuffer<R> {
                         ptr::write_bytes(buf_ptr, 0x00, buf.len() - 1 - r as usize);
                     }
 
+                    self.count_nulls += buf.len() - r;
+
                     return Ok(buf.len())
                 }
                 Ok(r)
@@ -68,26 +76,3 @@ impl<R: Read> Seek for PipeBuffer<R> {
         }
     }
 }
-
-
-//// Working - old version
-//impl <R: Read> Read for BufReaderHacked<R> {
-//    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-//        self.upload_counter += buf.len();
-//        if self.upload_counter < self.max_size {
-//            trace!("Total size: {} - Upload counter: {}", self.max_size, self.upload_counter)
-//        } else {
-//            trace!("Everything is uploaded - Total size: {} - Upload counter: {}", self.max_size, self.upload_counter)
-//        }
-//        let r = self.inner.read(buf);
-//        if r.is_ok() && r.as_ref().unwrap() < &buf.len() {
-//            let rr = r.as_ref().unwrap().clone() as u64;
-//            for i in rr..((buf.len()-1) as u64) {
-//                buf[i as usize] = 0;
-//            }
-//            return Ok(buf.len())
-//        }
-//        trace!("Return: {:?}", r);
-//        r
-//    }
-//}
