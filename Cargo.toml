@@ -7,7 +7,8 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-google-drive3 = "^1.0"
+#google-drive3 = "^1.0"
+google-drive3 = { path = "google-apis-rs/gen/drive3" }
 # This project intentionally uses an old version of Hyper. See
 # https://github.com/Byron/google-apis-rs/issues/173 for more
 # information.
@@ -27,3 +28,4 @@ regex = "*"
 atty = "*"
 dirs = "*"
 lazy_static = "*"
+prettytable-rs = "*"
