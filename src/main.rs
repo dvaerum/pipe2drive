@@ -7,6 +7,10 @@ extern crate atty;
 #[macro_use]
 extern crate lazy_static;
 extern crate regex;
+#[macro_use]
+extern crate prettytable;
+
+use prettytable::{Table};
 
 mod pipe_buffer;
 mod auth;
@@ -14,30 +18,13 @@ mod drive;
 mod misc;
 
 use log::Level;
-use clap::{App, Arg};
+use clap::{App, Arg, SubCommand};
+use crate::misc::print_info;
 
 fn main() {
-    simple_logger::init_with_level(Level::Info).unwrap();
-
     let matches = App::new("Pipe2Google")
         .version(env!("CARGO_PKG_VERSION"))
         .about("If you pipe data (doesn't matter what data) to this program and then select a name for that data and declare it size, it will be uploaded to Google Drive")
-        .arg(Arg::with_name("data_size")
-            .value_name("size")
-            .help("The size of the data you want to upload.\nExample: 100mib, 1gb or 1048576 aka. 1mib)\nSupported Sizes: b, kb, kib, mb, mib, gb, gib, tb and tib")
-            .required(true)
-            .index(1))
-        .arg(Arg::with_name("file_name")
-            .short("n")
-            .long("name")
-            .value_name("FILE NAME")
-            .help("The name of the file uploaded to Google Drive")
-            .takes_value(true))
-        .arg(Arg::with_name("parent_folder_id")
-            .long("folder")
-            .value_name("ID")
-            .help("The ID of the folder where you want the file to be uploaded to.\nIf this is not defined, the file will be uploaded to 'My Drive'")
-            .takes_value(true))
         .arg(Arg::with_name("client_secret_file")
             .long("secret")
             .value_name("FILE")
@@ -48,34 +35,109 @@ fn main() {
             .value_name("FILE")
             .help("Select the file/there the file containing the client token is/should be saved")
             .takes_value(true))
-        .arg(Arg::with_name("replace")
-            .long("replace")
-            .conflicts_with("duplicate")
-            .help("If a file exists with the same name it will be replaced"))
-        .arg(Arg::with_name("duplicate")
-            .long("duplicate")
-            .conflicts_with("replace")
-            .help("Allow multiple files to have the same name"))
+        .arg(Arg::with_name("debug")
+            .long("debug")
+            .help(""))
+        .subcommand(SubCommand::with_name("upload")
+            .about("")
+            .arg(Arg::with_name("data_size")
+                .value_name("size")
+                .help("The size of the data you want to upload.\nExample: 100mib, 1gb or 1048576 aka. 1mib)\nSupported Sizes: b, kb, kib, mb, mib, gb, gib, tb and tib")
+                .required(true)
+                .index(1))
+            .arg(Arg::with_name("file_name")
+                .short("n")
+                .long("name")
+                .value_name("FILE NAME")
+                .help("The name of the file uploaded to Google Drive")
+                .takes_value(true))
+            .arg(Arg::with_name("parent_folder_id")
+                .long("folder")
+                .value_name("ID")
+                .help("The ID of the folder where you want the file to be uploaded to.\nIf this is not defined, the file will be uploaded to 'My Drive'")
+                .takes_value(true))
+            .arg(Arg::with_name("replace")
+                .long("replace")
+                .conflicts_with("duplicate")
+                .help("If a file exists with the same name it will be replaced"))
+            .arg(Arg::with_name("duplicate")
+                .long("duplicate")
+                .conflicts_with("replace")
+                .help("Allow multiple files to have the same name")))
+        .subcommand(SubCommand::with_name("list")
+            .about("List files and there ID")
+            .arg(Arg::with_name("folder_id")
+                .long("folder")
+                .value_name("ID")
+                .help("")
+                .takes_value(true)))
+        .subcommand(SubCommand::with_name("info")
+            .about("Get info about ID")
+            .arg(Arg::with_name("id")
+                .value_name("ID")
+                .required(true)
+                .help("")
+                .takes_value(true)))
+        .subcommand(SubCommand::with_name("download")
+            .about("Download a file from Google Drive")
+            .arg(Arg::with_name("id")
+                .value_name("ID")
+                .required(true)
+                .help("")
+                .takes_value(true)))
         .get_matches();
 
-
-    if atty::is(atty::Stream::Stdin) {
-        error!("You need to pipe something to this program otherwise it has nothing to upload");
-        ::std::process::exit(misc::EXIT_CODE_001);
+    if matches.is_present("debug") {
+        simple_logger::init_with_level(Level::Debug).unwrap();
+    } else {
+        simple_logger::init_with_level(Level::Info).unwrap();
     }
+
 
     let hub = auth::auth(
         matches.value_of("client_secret_file"),
         matches.value_of("client_token_file"),
     );
 
-    let data_size = misc::parse_data_size(matches.value_of("data_size").unwrap()).as_u64();
-    drive::upload(
-        &hub,
-        data_size as usize,
-        matches.value_of("file_name"),
-        matches.value_of("parent_folder_id"),
-        matches.is_present("duplicate"),
-        matches.is_present("replace")
-    )
+    if let Some(id) = matches.subcommand_matches("info") {
+        let info = drive::info(&hub,id.value_of("id").unwrap());
+        print_info(&info)
+    }
+
+    if let Some(folder) = matches.subcommand_matches("list") {
+        let files = drive::list(&hub, folder.value_of("folder_id"));
+
+        let mut table = Table::new();
+        table.set_titles(row!["Type", "Name", "ID"]);
+        table.set_format(*prettytable::format::consts::FORMAT_CLEAN);
+
+        for file in files {
+            table.add_row(row![
+                     if file.mime_type.unwrap() == "application/vnd.google-apps.folder" { "Folder" } else { "File  " },
+                     file.name.unwrap(),
+                     file.id.unwrap()
+            ]);
+        }
+        table.printstd();
+    }
+
+    if let Some(id) = matches.subcommand_matches("download") {
+        drive::download(&hub,id.value_of("id").unwrap());
+    }
+
+    if atty::is(atty::Stream::Stdin) {
+        error!("You need to pipe something to this program otherwise it has nothing to upload");
+        ::std::process::exit(misc::EXIT_CODE_001);
+    }
+
+    if let Some(upload) = matches.subcommand_matches("upload") {
+        drive::upload(
+            &hub,
+            misc::parse_data_size(upload.value_of("data_size").unwrap()).as_u64() as usize,
+            upload.value_of("file_name"),
+            upload.value_of("parent_folder_id"),
+            upload.is_present("duplicate"),
+            upload.is_present("replace"),
+        )
+    }
 }
