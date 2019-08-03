@@ -18,7 +18,7 @@ mod misc;
 mod logger;
 
 use log::Level;
-use clap::{App, Arg, SubCommand};
+use clap::{App, Arg, SubCommand, AppSettings};
 use crate::misc::print_info;
 use std::process::exit;
 
@@ -26,6 +26,7 @@ fn main() {
     let matches = App::new("Pipe2Google")
         .version(env!("CARGO_PKG_VERSION"))
         .about("If you pipe data (doesn't matter what data) to this program and then select a name for that data and declare it size, it will be uploaded to Google Drive")
+        .setting(AppSettings::SubcommandRequiredElseHelp)
         .arg(Arg::with_name("client_secret_file")
             .long("secret")
             .value_name("FILE")
@@ -38,12 +39,15 @@ fn main() {
             .takes_value(true))
         .arg(Arg::with_name("debug")
             .long("debug")
-            .help(""))
+            .help("Will display Debug and Info logs"))
+        .arg(Arg::with_name("info")
+            .long("info")
+            .help("Will display Info logs"))
         .arg(Arg::with_name("quiet")
             .long("quiet")
-            .help(""))
+            .help("Will only display Error logs"))
         .subcommand(SubCommand::with_name("upload")
-            .about("")
+            .about("Upload a file to Google Drive")
             .arg(Arg::with_name("data_size")
                 .value_name("size")
                 .help("The size of the data you want to upload.\nExample: 100mib, 1gb or 1048576 aka. 1mib)\nSupported Sizes: b, kb, kib, mb, mib, gb, gib, tb and tib")
@@ -73,30 +77,33 @@ fn main() {
             .arg(Arg::with_name("folder_id")
                 .long("folder")
                 .value_name("ID")
-                .help("")
+                .help("If a folder ID is provided the content of that folder will be listed,\notherwise the content of 'My Drive' will be listed")
                 .takes_value(true)))
         .subcommand(SubCommand::with_name("info")
             .about("Get info about ID")
             .arg(Arg::with_name("id")
                 .value_name("ID")
                 .required(true)
-                .help("")
+                .help("Provided the ID of the content of that you want more info about")
                 .takes_value(true)))
         .subcommand(SubCommand::with_name("download")
             .about("Download a file from Google Drive")
-            .arg(Arg::with_name("id")
+            .arg(Arg::with_name("file_id")
+                .long("file")
                 .value_name("ID")
                 .required(true)
-                .help("")
+                .help("Provided the ID of the file (or one of the split files) you want to download")
                 .takes_value(true)))
         .get_matches();
 
     if matches.is_present("debug") {
         logger::init_with_level(Level::Debug).unwrap();
     } else if matches.is_present("quiet") {
-        logger::init_with_level(Level::Warn).unwrap()
-    } else {
+        logger::init_with_level(Level::Error).unwrap()
+    } else if matches.is_present("info") {
         logger::init_with_level(Level::Info).unwrap();
+    } else {
+        logger::init_with_level(Level::Warn).unwrap();
     }
 
     let hub = auth::auth(
@@ -129,16 +136,16 @@ fn main() {
     }
 
     if let Some(id) = matches.subcommand_matches("download") {
-        drive::download(&hub,id.value_of("id").unwrap());
+        drive::download(&hub,id.value_of("file_id").unwrap());
         exit(0);
     }
 
-    if atty::is(atty::Stream::Stdin) {
-        error!("You need to pipe something to this program otherwise it has nothing to upload");
-        exit(misc::EXIT_CODE_001);
-    }
-
     if let Some(upload) = matches.subcommand_matches("upload") {
+        if atty::is(atty::Stream::Stdin) {
+            error!("You need to pipe something to this program otherwise it has nothing to upload");
+            exit(misc::EXIT_CODE_001);
+        }
+
         drive::upload(
             &hub,
             misc::parse_data_size(upload.value_of("data_size").unwrap()).as_u64() as usize,
