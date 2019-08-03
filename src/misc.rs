@@ -17,6 +17,7 @@ pub const EXIT_CODE_008: i32 = 08;
 pub const EXIT_CODE_009: i32 = 09;
 pub const EXIT_CODE_010: i32 = 10;
 pub const EXIT_CODE_011: i32 = 11;
+pub const EXIT_CODE_012: i32 = 11;
 
 
 lazy_static! {
@@ -135,7 +136,7 @@ pub fn print_info(file: &File) {
 //        if let Some(ref v) = file.properties { table.add_row(row!["properties".to_owned(), v]); }
     if let Some(ref v) = file.web_view_link { table.add_row(row!["web_view_link".to_owned(), v]); }
     if let Some(ref v) = file.version { table.add_row(row!["version".to_owned(), v]); }
-//        if let Some(ref v) = file.parents { table.add_row(row!["parents".to_owned(), v]); }
+        if let Some(ref v) = file.parents { table.add_row(row!["parents".to_owned(), v.join(",")]); }
 //        if let Some(ref v) = file.md { table.add_row(row!["md".to_owned(), v]); }
 //        if let Some(ref v) = file.export_links { table.add_row(row!["export_links".to_owned(), v]); }
     if let Some(ref v) = file.shared { table.add_row(row!["shared".to_owned(), v]); }
