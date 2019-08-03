@@ -1,6 +1,5 @@
 #[macro_use]
 extern crate log;
-extern crate simple_logger;
 extern crate clap;
 extern crate bytesize;
 extern crate atty;
@@ -16,10 +15,12 @@ mod pipe_buffer;
 mod auth;
 mod drive;
 mod misc;
+mod logger;
 
 use log::Level;
 use clap::{App, Arg, SubCommand};
 use crate::misc::print_info;
+use std::process::exit;
 
 fn main() {
     let matches = App::new("Pipe2Google")
@@ -37,6 +38,9 @@ fn main() {
             .takes_value(true))
         .arg(Arg::with_name("debug")
             .long("debug")
+            .help(""))
+        .arg(Arg::with_name("quiet")
+            .long("quiet")
             .help(""))
         .subcommand(SubCommand::with_name("upload")
             .about("")
@@ -88,11 +92,12 @@ fn main() {
         .get_matches();
 
     if matches.is_present("debug") {
-        simple_logger::init_with_level(Level::Debug).unwrap();
+        logger::init_with_level(Level::Debug).unwrap();
+    } else if matches.is_present("quiet") {
+        logger::init_with_level(Level::Warn).unwrap()
     } else {
-        simple_logger::init_with_level(Level::Info).unwrap();
+        logger::init_with_level(Level::Info).unwrap();
     }
-
 
     let hub = auth::auth(
         matches.value_of("client_secret_file"),
@@ -101,7 +106,8 @@ fn main() {
 
     if let Some(id) = matches.subcommand_matches("info") {
         let info = drive::info(&hub,id.value_of("id").unwrap());
-        print_info(&info)
+        print_info(&info);
+        exit(0);
     }
 
     if let Some(folder) = matches.subcommand_matches("list") {
@@ -119,15 +125,17 @@ fn main() {
             ]);
         }
         table.printstd();
+        exit(0);
     }
 
     if let Some(id) = matches.subcommand_matches("download") {
         drive::download(&hub,id.value_of("id").unwrap());
+        exit(0);
     }
 
     if atty::is(atty::Stream::Stdin) {
         error!("You need to pipe something to this program otherwise it has nothing to upload");
-        ::std::process::exit(misc::EXIT_CODE_001);
+        exit(misc::EXIT_CODE_001);
     }
 
     if let Some(upload) = matches.subcommand_matches("upload") {
@@ -138,6 +146,7 @@ fn main() {
             upload.value_of("parent_folder_id"),
             upload.is_present("duplicate"),
             upload.is_present("replace"),
-        )
+        );
+        exit(0);
     }
 }
