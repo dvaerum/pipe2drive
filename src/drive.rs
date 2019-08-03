@@ -13,8 +13,10 @@ use super::auth::HubType;
 use std::process::exit;
 use super::misc;
 use std::borrow::BorrowMut;
-use std::io::{Write, Read};
+use std::io::{Write, Read, Stdout};
 use std::io;
+use std::path::PathBuf;
+use crate::misc::file_filter;
 
 
 pub fn upload(hub: &HubType,
@@ -45,7 +47,7 @@ pub fn upload(hub: &HubType,
         }
     }
 
-    let stdin = ::std::io::stdin();
+    let stdin = io::stdin();
     let mut buffer = PipeBuffer::new(stdin.lock(), size);
     let mut count = 0;
     let mut file_ids: Vec<String> = Vec::new();
@@ -75,15 +77,14 @@ pub fn upload(hub: &HubType,
                               "application/octet-stream".parse().unwrap(),
             );
 
-        count += 1;
-
+        if buffer.is_there_more() { count += 1 }
         match result {
             Ok(r) => {
                 info!("Uploaded file: '{}'", r.1.name.unwrap());
                 file_ids.push(r.1.id.unwrap())
             }
             Err(e) => {
-                error!("{}", e);
+                error!("Failed at uploading '{}'", e);
                 break;
             }
         }
@@ -94,12 +95,7 @@ pub fn upload(hub: &HubType,
         Err(e) => warn!("Set the number of concatenated null (0x00) bytes in the description - '{}' - {}", file_name, e)
     }
 
-    let mut tmp = String::new();
-    for file_id in file_ids {
-        tmp = format!(r#"{}" "{}"#, tmp, file_id)
-    }
-    let trim: &[_] = &[' ', '"'];
-    info!(r#"FILE ID(s) = "{}""#, tmp.trim_matches(trim))
+    info!(r#"FILE ID(s) = "{}""#, file_ids.join(" "))
 }
 
 
@@ -129,7 +125,7 @@ pub fn info(hub: &HubType, id: &str) -> File {
     let (_, file) = hub.files().get(id)
         .supports_all_drives(true)
         .acknowledge_abuse(false)
-        .param("fields", "mimeType,id,kind,teamDriveId,name,driveId,description,size")
+        .param("fields", "mimeType,id,kind,teamDriveId,name,driveId,description,size,parents,trashed")
         .doit()
         .unwrap_or_else(|e| {
             error!("{}", e);
@@ -147,7 +143,8 @@ pub fn list(hub: &HubType, parent_folder_id: Option<&str>) -> Vec<File> {
 
     let mut next_page_token: Option<String> = None;
     while {
-        let mut build = hub.files().list();
+        let mut build = hub.files().list()
+            .param("fields", "files(mimeType,id,kind,teamDriveId,name,driveId,description,size,parents,trashed)");
 
         if parent_folder_id.is_some() {
             build = build
@@ -156,13 +153,15 @@ pub fn list(hub: &HubType, parent_folder_id: Option<&str>) -> Vec<File> {
                 .supports_all_drives(true)
                 .q(format!("'{}' in parents and trashed = false",
                            parent_folder_id.unwrap()).as_str())
+        } else {
+            build = build.q("'root' in parents")
         }
         if next_page_token.is_some() {
             build = build.page_token(next_page_token.unwrap().as_str())
         }
 
         let (_, file_list) = build.doit().unwrap_or_else(|e| {
-            error!("{}", e);
+            error!("List request failed - {}", e);
             exit(misc::EXIT_CODE_007)
         });
 
@@ -189,62 +188,119 @@ fn delete(hub: &HubType, file: &File) {
 }
 
 
+pub fn create_file_list(hub: &HubType, file: File) -> Vec<File> {
+    let mut files: Vec<File> = Vec::new();
+    let tmp_path = file.name.as_ref().unwrap().parse::<PathBuf>().unwrap();
+
+    if let Some(file_ext) = tmp_path.extension() {
+        let file_ext = file_ext.to_str().unwrap();
+
+        if file_ext.len() >= 3 && file_ext.chars().all(|c| c.is_digit(10)) {
+            for p in file.parents.as_ref().unwrap() {
+                files = file_filter(
+                    format!(r#"^{}(\.[0-9]+)?$"#, regex::escape(tmp_path.file_stem().unwrap().to_str().unwrap())).as_str(),
+                    &list(hub, Some(p)),
+                );
+                files.sort_by(|f1, f2| f1.name.as_ref().unwrap().cmp(f2.name.as_ref().unwrap()));
+            }
+        } else {
+            files.push(file);
+        }
+    } else {
+        files.push(file);
+    }
+
+    files
+}
+
 pub fn download(hub: &HubType, file_id: &str) {
     let info = info(hub, file_id);
+    if info.trashed.is_some() && info.trashed.unwrap() {
+        error!("Cannot download the file '{}' because it is trashed", info.name.as_ref().unwrap());
+        exit(misc::EXIT_CODE_012)
+    }
 
-    let size = match info.size {
-        Some(s) => s.trim().parse::<usize>().unwrap(),
-        None => {
-            error!("The ID '{}' is not a file", file_id);
-            exit(misc::EXIT_CODE_011)
-        }
+    let files = create_file_list(hub, info);
+
+
+    let file_name;
+    if files.len() == 1 {
+        file_name = files.first().unwrap().name.as_ref().unwrap().to_owned()
+    } else {
+        let _tmp = files.first().unwrap()
+            .name.as_ref().unwrap()
+            .parse::<PathBuf>().clone();
+        file_name = _tmp.unwrap().file_stem().unwrap().to_str().unwrap().to_string();
     };
 
-    let mut zeros = info.description.map_or(0, |s| {
+    let mut pipe: Option<Stdout> = None;
+    let mut file: Option<::std::fs::File> = None;
+    if atty::is(atty::Stream::Stdout) {
+        file = Some(::std::fs::File::create(&file_name).expect("Unable to open file"));
+    } else {
+        pipe = Some(io::stdout());
+    }
+
+    let total_size = files.iter()
+        .map(|file| file.size.as_ref().unwrap_or_else(|| {
+            error!("The ID '{}' is not a file", file.id.as_ref().unwrap());
+            exit(misc::EXIT_CODE_011)
+        }).parse::<usize>().unwrap()).sum();
+
+    let mut zeros = files.last().unwrap().description.as_ref().map_or(0, |s| {
         s.trim().parse::<usize>().unwrap_or(0)
     });
 
-    if zeros > size {
+    if zeros > total_size {
         zeros = 0;
     }
 
-    let file_size = size - zeros;
+    let file_size = total_size - zeros;
+
+
     debug!("File size: {}", file_size);
-
-    let (mut response, _) = hub.files().get(file_id)
-        .supports_all_drives(true)
-        .acknowledge_abuse(false)
-        .param("alt", "media")
-        .add_scope(drive3::Scope::Full)
-        .doit()
-        .unwrap_or_else(|e| {
-            error!("{}", e);
-            exit(misc::EXIT_CODE_010);
-        });
-
-    let mut file = ::std::fs::File::create(
-        info.name.expect("The info request/function didn't include the filename")
-    ).expect("Unable to open file");
-
+    info!("Starting to download the file: {}", file_name);
     let mut written = 0;
     let mut buf = [0; 2 * 1024 * 1024];
-    loop {
-        let len = match response.read(&mut buf) {
-            Ok(0) => break,  // EOF.
-            Ok(len) => {
-                if written >= file_size {
-                    break;
-                } else if len + written > file_size {
-                    file_size - written
-                } else {
-                    len
-                }
-            }
-            Err(ref err) if err.kind() == io::ErrorKind::Interrupted => continue,
-            Err(err) => return error!("{}: Download failed: {}", "", err),
-        };
+    for _file in files {
+        let (mut response, _) = hub.files().get(_file.id.as_ref().unwrap())
+            .supports_all_drives(true)
+            .acknowledge_abuse(false)
+            .param("alt", "media")
+            .add_scope(drive3::Scope::Full)
+            .doit()
+            .unwrap_or_else(|e| {
+                error!("{}", e);
+                exit(misc::EXIT_CODE_010);
+            });
 
-        file.write_all(&buf[..len]).expect("failed writing to file");
-        written += len;
+
+        loop {
+            let len = match response.read(&mut buf) {
+                Ok(0) => break,  // EOF.
+                Ok(len) => {
+                    if written >= file_size {
+                        break;
+                    } else if len + written > file_size {
+                        file_size - written
+                    } else {
+                        len
+                    }
+                }
+                Err(ref err) if err.kind() == io::ErrorKind::Interrupted => continue,
+                Err(err) => return error!("{}: Download failed: {}", "", err),
+            };
+
+            if let Some(writer) = pipe.as_mut() {
+                writer.lock().write_all(&buf[..len]).expect("failed writing to file");
+            }
+            if let Some(writer) = file.as_mut() {
+                writer.write_all(&buf[..len]).expect("failed writing to file");
+            }
+
+            written += len;
+        }
     }
+
+    info!("Download of '{}' Completed", file_name);
 }
