@@ -15,12 +15,84 @@ If the data is less than you estimated, the file will be uploaded and the differ
 
 ## Help Menu
 ```
-Pipe2Google 0.1.0
 If you pipe data (doesn't matter what data) to this program and then select a name for that data and declare it size, it
 will be uploaded to Google Drive
 
 USAGE:
-    pipe2drive [FLAGS] [OPTIONS] <size>
+    pipe2drive [FLAGS] [OPTIONS] <SUBCOMMAND>
+
+FLAGS:
+        --debug      Will display Debug and Info logs
+    -h, --help       Prints help information
+        --info       Will display Info logs
+        --quiet      Will only display Error logs
+    -V, --version    Prints version information
+
+OPTIONS:
+        --secret <FILE>    Select the file containing the client secret. If you don't have one go here
+                           https://console.developers.google.com/apis/credentials
+        --token <FILE>     Select the file/there the file containing the client token is/should be saved
+
+SUBCOMMANDS:
+    download    Download a file from Google Drive
+    help        Prints this message or the help of the given subcommand(s)
+    info        Get info about ID
+    list        List files and there ID
+    upload      Upload a file to Google Drive
+
+```
+### Help Menu - download
+```
+Download a file from Google Drive
+
+USAGE:
+    pipe2drive download --file <ID>
+
+FLAGS:
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+
+OPTIONS:
+        --file <ID>    Provided the ID of the file (or one of the split files) you want to download
+
+```
+### Help Menu - info
+```
+Get info about ID
+
+USAGE:
+    pipe2drive info <ID>
+
+FLAGS:
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+
+ARGS:
+    <ID>    Provided the ID of the content of that you want more info about
+
+```
+### Help Menu - list
+```
+List files and there ID
+
+USAGE:
+    pipe2drive list [OPTIONS]
+
+FLAGS:
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+
+OPTIONS:
+        --folder <ID>    If a folder ID is provided the content of that folder will be listed,
+                         otherwise the content of 'My Drive' will be listed
+
+```
+### Help Menu - upload
+```
+Upload a file to Google Drive
+
+USAGE:
+    pipe2drive upload [FLAGS] [OPTIONS] <size>
 
 FLAGS:
         --duplicate    Allow multiple files to have the same name
@@ -29,9 +101,6 @@ FLAGS:
     -V, --version      Prints version information
 
 OPTIONS:
-        --secret <FILE>       Select the file containing the client secret. If you don't have one go here
-                              https://console.developers.google.com/apis/credentials
-        --token <FILE>        Select the file/there the file containing the client token is/should be saved
     -n, --name <FILE NAME>    The name of the file uploaded to Google Drive
         --folder <ID>         The ID of the folder where you want the file to be uploaded to.
                               If this is not defined, the file will be uploaded to 'My Drive'
@@ -40,4 +109,5 @@ ARGS:
     <size>    The size of the data you want to upload.
               Example: 100mib, 1gb or 1048576 aka. 1mib)
               Supported Sizes: b, kb, kib, mb, mib, gb, gib, tb and tib
+
 ```
