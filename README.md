@@ -5,7 +5,8 @@ pipe2drive is a simple program I wrote for myself, because I wanted a way to cre
 ## How the program works
 You need a credential from Google before you can use pipe2drive. When created, you need to download the credentials and place them here `~/.config/pipe2drive/client_secret.json` or use the `--secret <FILE>` option to select a different location.
 
-The first time using pipe2drive, you will have to create a token. This token is stored here `~/.config/pipe2drive/client_token.json` or you can pick a different location by using the option `--token <FILE>`
+The first time using pipe2drive, you will have to create a token. This token is stored here `~/.config/pipe2drive/client_token.json` or you can pick a different location by using the option `--token <FILE>`.  
+**NOTE:** The easiest way to create to `client_token.json` is by running `pipe2drive list`
 
 When using pipe to upload a file to Drive. One thing you have to do is selecting the size of the file you are uploading. Of course, you may not know the size since you are probably uploading data while it is being created. That is okay, you can use an estimate.
 

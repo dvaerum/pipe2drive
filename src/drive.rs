@@ -73,6 +73,7 @@ pub fn upload(hub: &HubType,
         let result = hub.files()
             .create(req.clone())
             .supports_all_drives(true)
+            .add_scope(drive3::Scope::Full)
             .upload_resumable(&mut buffer,
                               "application/octet-stream".parse().unwrap(),
             );
@@ -106,6 +107,7 @@ pub fn rename(hub: &HubType, file_id: &str, new_name: String) -> Result<(Respons
     hub.files()
         .update(file, file_id)
         .supports_all_drives(true)
+        .add_scope(drive3::Scope::Full)
         .doit_without_upload()
 }
 
@@ -117,6 +119,7 @@ pub fn set_description(hub: &HubType, file_id: &str, description: String) -> Res
     hub.files()
         .update(file, file_id)
         .supports_all_drives(true)
+        .add_scope(drive3::Scope::Full)
         .doit_without_upload()
 }
 
@@ -126,6 +129,7 @@ pub fn info(hub: &HubType, id: &str) -> File {
         .supports_all_drives(true)
         .acknowledge_abuse(false)
         .param("fields", "mimeType,id,kind,teamDriveId,name,driveId,description,size,parents,trashed")
+        .add_scope(drive3::Scope::Full)
         .doit()
         .unwrap_or_else(|e| {
             error!("{}", e);
@@ -160,10 +164,13 @@ pub fn list(hub: &HubType, parent_folder_id: Option<&str>) -> Vec<File> {
             build = build.page_token(next_page_token.unwrap().as_str())
         }
 
-        let (_, file_list) = build.doit().unwrap_or_else(|e| {
-            error!("List request failed - {}", e);
-            exit(misc::EXIT_CODE_007)
-        });
+        let (_, file_list) = build
+            .add_scope(drive3::Scope::Full)
+            .doit()
+            .unwrap_or_else(|e| {
+                error!("List request failed - {}", e);
+                exit(misc::EXIT_CODE_007)
+            });
 
         next_page_token = file_list.next_page_token;
         debug!("Next Page Token: {:?}", next_page_token.as_ref().unwrap_or(&"None".to_owned()));
@@ -179,6 +186,7 @@ pub fn list(hub: &HubType, parent_folder_id: Option<&str>) -> Vec<File> {
 fn delete(hub: &HubType, file: &File) {
     hub.files().delete(file.id.as_ref().unwrap())
         .supports_all_drives(true)
+        .add_scope(drive3::Scope::Full)
         .doit()
         .unwrap_or_else(|e| {
             error!("Failed at deleting the file '{}' - {}", file.name.as_ref().unwrap(), e);
