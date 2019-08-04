@@ -17,7 +17,7 @@ impl<R: Read> PipeBuffer<R> {
             upload_counter: 0,
             max_size: size,
             eop: false,
-            count_nulls: 0
+            count_nulls: 0,
         }
     }
 
@@ -41,24 +41,24 @@ impl<R: Read> Read for PipeBuffer<R> {
 
         match self.inner.read(buf) {
             Ok(r) => {
-                if r < buf.len() {
-                    if !self.eop && r == 0 {
-                        self.eop = true;
-                    }
+                if !self.eop && r == 0 {
+                    self.eop = true;
+                }
 
-                    // Filling (the remain part of) the buffer with 0x00 if there is
-                    // no more data from Stdin
+                // Filling (the remain part of) the buffer with 0x00 if there is
+                // no more data from Stdin
+                if self.eop {
                     let mut buf_ptr = buf.as_mut_ptr();
                     unsafe {
                         buf_ptr = buf_ptr.offset(r as isize);
                         ptr::write_bytes(buf_ptr, 0x00, buf.len() - 1 - r as usize);
                     }
-
                     self.count_nulls += buf.len() - r;
 
-                    return Ok(buf.len())
+                    Ok(buf.len())
+                } else {
+                    Ok(r)
                 }
-                Ok(r)
             }
             Err(e) => Err(e)
         }
