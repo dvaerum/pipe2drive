@@ -1,5 +1,5 @@
 name: pipe2drive
-version: '0.2.0'
+version: '0.2.1'
 summary: Pipe your data to Google Drive
 description: |
   If you pipe data (doesn't matter what data) to this program and then select a name for that data and declare it size, it will be uploaded to Google Drive.
