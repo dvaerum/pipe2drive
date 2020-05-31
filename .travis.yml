@@ -1,0 +1,22 @@
+#dist: bionic
+
+language: rust
+cache: cargo
+
+#addons:
+#  apt:
+#    packages:
+#      - snap
+
+script:
+#  - sudo snap install snapcraft --classic
+#  - snapcraft
+  - cargo build --verbose --all
+
+
+#deploy:
+#  provider: snap
+#  snap: pipe2drive_*.snap
+#  channel: beta
+#  skip_cleanup: true
+
