@@ -23,7 +23,7 @@ use crate::misc::print_info;
 use std::process::exit;
 
 fn main() {
-    let matches = App::new("Pipe2Google")
+    let matches = App::new("Pipe2Drive")
         .version(env!("CARGO_PKG_VERSION"))
         .about("If you pipe data (doesn't matter what data) to this program and then select a name for that data and declare it size, it will be uploaded to Google Drive")
         .setting(AppSettings::SubcommandRequiredElseHelp)

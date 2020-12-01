@@ -10,11 +10,7 @@ edition = "2018"
 default = ["colored"]
 
 [dependencies]
-#google-drive3 = "^1.0"
-google-drive3 = { path = "google-apis-rs/gen/drive3" }
-# This project intentionally uses an old version of Hyper. See
-# https://github.com/Byron/google-apis-rs/issues/173 for more
-# information.
+google-drive3 = "*"
 hyper = "^0.10"
 hyper-rustls = "^0.6"
 hyper-native-tls = "0.3"
