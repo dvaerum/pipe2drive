@@ -78,11 +78,19 @@ pub fn upload(hub: &HubType,
                               "application/octet-stream".parse().unwrap(),
             );
 
-        if buffer.is_there_more() { count += 1 }
+        if buffer.is_there_more() {
+            count += 1
+        }
         match result {
             Ok(r) => {
                 info!("Uploaded file: '{}'", r.1.name.unwrap());
-                file_ids.push(r.1.id.unwrap())
+                file_ids.push(r.1.id.unwrap());
+
+                match set_description(hub, file_ids.last().unwrap(), buffer.nulls().to_string()) {
+                    Ok(_) => info!("Set the number of concatenated null (0x00) bytes in the description - '{}.{count:0>3}'", file_name, count = count),
+                    Err(e) => warn!("Set the number of concatenated null (0x00) bytes in the description - '{}' - {}", file_name, e)
+                }
+                info!(r#"FILE ID(s) = "{}""#, file_ids.join(" "))
             }
             Err(e) => {
                 error!("Failed at uploading '{}'", e);
@@ -90,13 +98,6 @@ pub fn upload(hub: &HubType,
             }
         }
     }
-
-    match set_description(hub, file_ids.last().unwrap(), buffer.nulls().to_string()) {
-        Ok(_) => info!("Set the number of concatenated null (0x00) bytes in the description - '{}.{count:0>3}'", file_name, count = count),
-        Err(e) => warn!("Set the number of concatenated null (0x00) bytes in the description - '{}' - {}", file_name, e)
-    }
-
-    info!(r#"FILE ID(s) = "{}""#, file_ids.join(" "))
 }
 
 
