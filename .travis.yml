@@ -1,17 +1,21 @@
-#dist: bionic
+dist: focal
 
 language: rust
-cache: cargo
 
-#addons:
-#  apt:
-#    packages:
-#      - snap
+addons:
+  apt:
+    packages:
+      - snap
 
 script:
-#  - sudo snap install snapcraft --classic
-#  - snapcraft
-  - cargo build --verbose --all
+  - ls -la
+  - echo ======================
+  - echo $PWD
+  - echo ======================
+  - env
+  - echo ======================
+  - travis_wait 40 bash -x build_release.sh
+#  - cargo build --verbose --all
 
 
 #deploy:

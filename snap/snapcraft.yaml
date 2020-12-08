@@ -5,24 +5,31 @@ description: |
   If you pipe data (doesn't matter what data) to this program and then select a name for that data and declare it size, it will be uploaded to Google Drive.
   pipe2drive is a simple program I wrote for myself, because I wanted a way to create a tarball of my files and upload them to Google Drive without having to store the tarball on my system. I didn't want to store the tarball on my system because that would require around as much free space as the data itself, since it wasn't compressible.
 
-base: core18
+base: core
 grade: stable
 confinement: strict
-
+architectures:
+  - build-on: amd64
+  - build-on: i386
+  - build-on: arm64
+  - build-on: armhf
 
 parts:
   pipe2drive:
     plugin: rust
     source: .
     build-environment:
-      - RUST_BACKTRACE: '1'
-    stage-packages:
+      - RUST_BACKTRACE: 'full'
+    build-packages:
+      - gcc-multilib
       - libssl-dev
       - pkg-config
+#    stage-packages:
 
 apps:
   pipe2drive:
     command: bin/pipe2drive
     environment:
-            HOME: ${SNAP_USER_COMMON}
+      HOME: ${SNAP_USER_COMMON}
+      RUST_BACKTRACE: 'full'
 
