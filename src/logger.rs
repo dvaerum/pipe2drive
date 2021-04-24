@@ -1,13 +1,10 @@
-extern crate log;
 extern crate chrono;
 //extern crate term;
 
-#[cfg(feature = "colored")]
 extern crate colored;
-#[cfg(feature = "colored")]
 use colored::*;
 
-use log::{Log,Level,Metadata,Record,SetLoggerError};
+use super::log::{Log, Level, Metadata, Record, SetLoggerError};
 use chrono::Local;
 
 struct SimpleLogger {
@@ -24,7 +21,7 @@ impl Log for SimpleLogger {
         use std::io::Write;
         if self.enabled(record.metadata()) {
             let level_string = {
-                #[cfg(feature = "colored")] {
+                {
                     match record.level() {
                         Level::Error => record.level().to_string().red(),
                         Level::Warn => record.level().to_string().yellow(),
@@ -32,9 +29,6 @@ impl Log for SimpleLogger {
                         Level::Debug => record.level().to_string().purple(),
                         Level::Trace => record.level().to_string().normal(),
                     }
-                }
-                #[cfg(not(feature = "colored"))] {
-                    record.level().to_string()
                 }
             };
             let target = if record.target().len() > 0 {
