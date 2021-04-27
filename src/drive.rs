@@ -1,27 +1,28 @@
+extern crate google_drive3 as drive3;
 extern crate hyper;
 extern crate hyper_rustls;
 extern crate yup_oauth2 as oauth2;
-extern crate google_drive3 as drive3;
 
-use self::hyper::{Response, Body};
 use self::hyper::body::HttpBody;
+use self::hyper::{Body, Response};
 
-use drive3::Result;
 use drive3::api::{File, Scope};
+use drive3::Result;
 use hyper::body::Bytes;
 
-use super::log::{error};
+use super::log::error;
 
-use super::pipe_buffer::{PipeBuffer};
+use super::pipe_buffer::PipeBuffer;
 
 use super::auth::HubType;
-use std::process::exit;
 use super::misc;
-use std::io::{Write, Stdout};
-use std::io;
-use std::path::PathBuf;
 use crate::misc::file_filter;
+use std::io;
 use std::io::Read;
+use std::io::{Stdout, Write};
+use std::path::PathBuf;
+use std::process::exit;
+use age::x25519::Recipient;
 
 pub async fn upload<T>(
     hub: &HubType,
@@ -30,7 +31,10 @@ pub async fn upload<T>(
     file_name: Option<&str>,
     parent_folder_id: Option<&str>,
     duplicate: bool,
-    replace: bool) where T: Read
+    replace: bool,
+    encryption_pub_key: Option<Recipient>,
+) where
+    T: Read,
 {
     let file_name = file_name.map_or("Untitled".to_owned(), |x| x.to_owned());
 
@@ -59,9 +63,15 @@ pub async fn upload<T>(
     let mut file_ids: Vec<String> = Vec::new();
     while buffer.is_there_more() {
         if count == 1 {
-            match rename(&hub, file_ids.first().unwrap(), format!("{}.000", file_name)).await {
+            match rename(
+                &hub,
+                file_ids.first().unwrap(),
+                format!("{}.000", file_name),
+            )
+            .await
+            {
                 Ok(_) => info!("Renamed file: '{0}' to '{0}.000'", file_name),
-                Err(e) => warn!("Failed at renaming the file '{}' - {}", file_name, e)
+                Err(e) => warn!("Failed at renaming the file '{}' - {}", file_name, e),
             }
         }
 
@@ -76,13 +86,13 @@ pub async fn upload<T>(
             req.name = Some(file_name.to_owned());
         }
 
-        let result = hub.files()
+        let result = hub
+            .files()
             .create(req.clone())
             .supports_all_drives(true)
             .add_scope(Scope::Full)
-            .upload_resumable(&mut buffer,
-                              "application/octet-stream".parse().unwrap(),
-            ).await;
+            .upload_resumable(&mut buffer, "application/octet-stream".parse().unwrap())
+            .await;
 
         if buffer.is_there_more() {
             count += 1
@@ -106,8 +116,11 @@ pub async fn upload<T>(
     }
 }
 
-
-pub async fn rename(hub: &HubType, file_id: &str, new_name: String) -> Result<(Response<Body>, File)> {
+pub async fn rename(
+    hub: &HubType,
+    file_id: &str,
+    new_name: String,
+) -> Result<(Response<Body>, File)> {
     let mut file = File::default();
     file.name = Some(new_name);
 
@@ -115,11 +128,15 @@ pub async fn rename(hub: &HubType, file_id: &str, new_name: String) -> Result<(R
         .update(file, file_id)
         .supports_all_drives(true)
         .add_scope(Scope::Full)
-        .doit_without_upload().await
+        .doit_without_upload()
+        .await
 }
 
-
-pub async fn set_description(hub: &HubType, file_id: &str, description: String) -> Result<(Response<Body>, File)> {
+pub async fn set_description(
+    hub: &HubType,
+    file_id: &str,
+    description: String,
+) -> Result<(Response<Body>, File)> {
     let mut file = File::default();
     file.description = Some(description);
 
@@ -127,9 +144,9 @@ pub async fn set_description(hub: &HubType, file_id: &str, description: String) 
         .update(file, file_id)
         .supports_all_drives(true)
         .add_scope(Scope::Full)
-        .doit_without_upload().await
+        .doit_without_upload()
+        .await
 }
-
 
 pub async fn info(hub: &HubType, id: &str) -> File {
     let (_, file) = hub.files().get(id)
@@ -147,7 +164,6 @@ pub async fn info(hub: &HubType, id: &str) -> File {
     file
 }
 
-
 pub async fn list(hub: &HubType, parent_folder_id: Option<&str>) -> Vec<File> {
     let mut files: Vec<File> = Vec::new();
 
@@ -163,8 +179,11 @@ pub async fn list(hub: &HubType, parent_folder_id: Option<&str>) -> Vec<File> {
                 .corpora("allDrives")
                 .include_items_from_all_drives(true)
                 .supports_all_drives(true)
-                .q(format!("'{}' in parents and trashed = false",
-                           parent_folder_id.unwrap()).as_str())
+                .q(format!(
+                    "'{}' in parents and trashed = false",
+                    parent_folder_id.unwrap()
+                )
+                .as_str())
         } else {
             build = build.q("'root' in parents")
         }
@@ -182,7 +201,10 @@ pub async fn list(hub: &HubType, parent_folder_id: Option<&str>) -> Vec<File> {
             });
 
         next_page_token = file_list.next_page_token;
-        debug!("Next Page Token: {:?}", next_page_token.as_ref().unwrap_or(&"None".to_owned()));
+        debug!(
+            "Next Page Token: {:?}",
+            next_page_token.as_ref().unwrap_or(&"None".to_owned())
+        );
         let mut tmp = file_list.files.unwrap();
         files.append(tmp.as_mut());
 
@@ -192,24 +214,26 @@ pub async fn list(hub: &HubType, parent_folder_id: Option<&str>) -> Vec<File> {
     files
 }
 
-
 async fn delete(hub: &HubType, file: &File) {
-    hub.files().delete(file.id.as_ref().unwrap())
+    hub.files()
+        .delete(file.id.as_ref().unwrap())
         .supports_all_drives(true)
         .add_scope(Scope::Full)
         .doit()
         .await
         .unwrap_or_else(|e| {
-            error!("Failed at deleting the file '{}' - {}", file.name.as_ref().unwrap(), e);
+            error!(
+                "Failed at deleting the file '{}' - {}",
+                file.name.as_ref().unwrap(),
+                e
+            );
             exit(misc::EXIT_CODE_009);
         });
     info!("Deleted '{}", file.name.as_ref().unwrap())
 }
 
-
 pub async fn create_file_list(hub: &HubType, file: File) -> Vec<File> {
     let mut files: Vec<File> = Vec::new();
-
 
     let tmp_path = file.name.as_ref().unwrap().parse::<PathBuf>().unwrap();
 
@@ -219,7 +243,11 @@ pub async fn create_file_list(hub: &HubType, file: File) -> Vec<File> {
         if file_ext.len() >= 3 && file_ext.chars().all(|c| c.is_digit(10)) {
             for p in file.parents.as_ref().unwrap() {
                 files = file_filter(
-                    format!(r#"^{}(\.[0-9]+)?$"#, regex::escape(tmp_path.file_stem().unwrap().to_str().unwrap())).as_str(),
+                    format!(
+                        r#"^{}(\.[0-9]+)?$"#,
+                        regex::escape(tmp_path.file_stem().unwrap().to_str().unwrap())
+                    )
+                    .as_str(),
                     &list(hub, Some(p)).await,
                 );
                 files.sort_by(|f1, f2| f1.name.as_ref().unwrap().cmp(f2.name.as_ref().unwrap()));
@@ -240,7 +268,10 @@ pub async fn download(hub: &HubType, file_id: &str) {
 
     // If the file is trashed, don't download
     if info.trashed.is_some() && info.trashed.unwrap() {
-        error!("Cannot download the file '{}' because it is trashed", info.name.as_ref().unwrap());
+        error!(
+            "Cannot download the file '{}' because it is trashed",
+            info.name.as_ref().unwrap()
+        );
         exit(misc::EXIT_CODE_012)
     }
 
@@ -252,10 +283,21 @@ pub async fn download(hub: &HubType, file_id: &str) {
     if files.len() == 1 {
         file_name = files.first().unwrap().name.as_ref().unwrap().to_owned()
     } else {
-        let _tmp = files.first().unwrap()
-            .name.as_ref().unwrap()
-            .parse::<PathBuf>().clone();
-        file_name = _tmp.unwrap().file_stem().unwrap().to_str().unwrap().to_string();
+        let _tmp = files
+            .first()
+            .unwrap()
+            .name
+            .as_ref()
+            .unwrap()
+            .parse::<PathBuf>()
+            .clone();
+        file_name = _tmp
+            .unwrap()
+            .file_stem()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
     };
 
     // Figure out if there should be written to file or stdout
@@ -268,20 +310,37 @@ pub async fn download(hub: &HubType, file_id: &str) {
     }
 
     // Calulate the total size of all the files
-    let total_size = files.iter()
-        .map(|file| file.size.as_ref().unwrap_or_else(|| {
-            error!("The ID '{}' is not a file", file.id.as_ref().unwrap());
-            exit(misc::EXIT_CODE_011)
-        }).parse::<usize>().unwrap()).sum::<usize>();
-
+    let total_size = files
+        .iter()
+        .map(|file| {
+            file.size
+                .as_ref()
+                .unwrap_or_else(|| {
+                    error!("The ID '{}' is not a file", file.id.as_ref().unwrap());
+                    exit(misc::EXIT_CODE_011)
+                })
+                .parse::<usize>()
+                .unwrap()
+        })
+        .sum::<usize>();
 
     // Figure out, how much of the last file can be skipped, because of it just being fill'er bytes (0x00)
-    let zeros = files.last().unwrap().description.as_ref().map_or(0, |s| {
-        s.trim().parse::<usize>().unwrap_or(0)
-    });
+    let zeros = files
+        .last()
+        .unwrap()
+        .description
+        .as_ref()
+        .map_or(0, |s| s.trim().parse::<usize>().unwrap_or(0));
 
     // Some validation of the value found in the description
-    let size_of_the_last_file = files.last().unwrap().size.as_ref().unwrap().parse::<usize>().unwrap();
+    let size_of_the_last_file = files
+        .last()
+        .unwrap()
+        .size
+        .as_ref()
+        .unwrap()
+        .parse::<usize>()
+        .unwrap();
     if zeros > size_of_the_last_file {
         error!("The value found in the description of '{}' (ID: {}) which represents the amount of filler bytes (0x00), is biggere then the actual size of the file. There is clearly something wrong.",
                files.last().unwrap().name.as_ref().unwrap(),
@@ -292,23 +351,29 @@ pub async fn download(hub: &HubType, file_id: &str) {
 
     let actually_file_size = total_size - zeros;
 
-
     debug!("File size: {}", actually_file_size);
     info!("Starting to download the file: {}", file_name);
     let mut written = 0;
 
     let mut write_data = |data: Bytes| {
         if let Some(writer) = pipe.as_mut() {
-            writer.lock().write_all(&data.to_vec()).expect("failed at sending data to stdout");
+            writer
+                .lock()
+                .write_all(&data.to_vec())
+                .expect("failed at sending data to stdout");
         }
         if let Some(writer) = file.as_mut() {
-            writer.write_all(&data.to_vec()).expect("failed writing to file");
+            writer
+                .write_all(&data.to_vec())
+                .expect("failed writing to file");
         }
     };
 
     // let mut buf = [0; 2 * 1024 * 1024];
     for _file in files {
-        let (response, _) = hub.files().get(_file.id.as_ref().unwrap())
+        let (response, _) = hub
+            .files()
+            .get(_file.id.as_ref().unwrap())
             .supports_all_drives(true)
             .acknowledge_abuse(false)
             .param("alt", "media")
@@ -338,7 +403,7 @@ pub async fn download(hub: &HubType, file_id: &str) {
                         }
 
                         written += _chunk_len
-                    },
+                    }
                     Err(err) => {
                         error!("Download failed: {}", err);
                         exit(misc::EXIT_CODE_014)

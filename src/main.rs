@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate log;
-extern crate bytesize;
 extern crate atty;
+extern crate bytesize;
 #[macro_use]
 extern crate lazy_static;
 extern crate regex;
@@ -9,18 +9,22 @@ extern crate regex;
 extern crate prettytable;
 
 use pipe_buffer::TestBuffer;
-use prettytable::{Table};
+use prettytable::Table;
 
-mod pipe_buffer;
-mod auth;
-mod drive;
-mod misc;
-mod logger;
 mod arguments;
+mod auth;
+mod crypto;
+mod drive;
+mod logger;
+mod misc;
+mod pipe_buffer;
 
-use log::Level;
 use crate::misc::print_info;
-use std::{io::{StdinLock, stdin}, process::exit};
+use log::Level;
+use std::{
+    io::{stdin, StdinLock},
+    process::exit,
+};
 
 #[tokio::main]
 async fn main() {
@@ -35,14 +39,14 @@ async fn main() {
     } else {
         logger::init_with_level(Level::Warn).unwrap();
     }
-
+    crypto::load_public_key();
     let hub = auth::auth(
         matches.value_of("client_secret_file"),
         matches.value_of("client_token_file"),
     );
 
     if let Some(id) = matches.subcommand_matches("info") {
-        let info = drive::info(&hub.await,id.value_of("id").unwrap()).await;
+        let info = drive::info(&hub.await, id.value_of("id").unwrap()).await;
         print_info(&info);
         exit(0);
     }
@@ -56,9 +60,13 @@ async fn main() {
 
         for file in files {
             table.add_row(row![
-                     if file.mime_type.unwrap() == "application/vnd.google-apps.folder" { "Folder" } else { "File  " },
-                     file.name.unwrap(),
-                     file.id.unwrap()
+                if file.mime_type.unwrap() == "application/vnd.google-apps.folder" {
+                    "Folder"
+                } else {
+                    "File  "
+                },
+                file.name.unwrap(),
+                file.id.unwrap()
             ]);
         }
         table.printstd();
@@ -66,7 +74,7 @@ async fn main() {
     }
 
     if let Some(download) = matches.subcommand_matches("download") {
-        drive::download(&hub.await,download.value_of("file_id").unwrap()).await;
+        drive::download(&hub.await, download.value_of("file_id").unwrap()).await;
         exit(0);
     }
 
@@ -74,6 +82,11 @@ async fn main() {
         if atty::is(atty::Stream::Stdin) && !upload.is_present("testing") {
             error!("You need to pipe something to this program otherwise it has nothing to upload");
             exit(misc::EXIT_CODE_001);
+        }
+
+        let mut encryption_pub_key = None;
+        if upload.is_present("encrypt") {
+            encryption_pub_key = Some(crypto::load_public_key())
         }
 
         if upload.is_present("testing") {
@@ -85,7 +98,9 @@ async fn main() {
                 upload.value_of("parent_folder_id"),
                 upload.is_present("duplicate"),
                 upload.is_present("replace"),
-            ).await;
+                encryption_pub_key,
+            )
+            .await;
         } else {
             drive::upload::<StdinLock>(
                 &hub.await,
@@ -95,7 +110,9 @@ async fn main() {
                 upload.value_of("parent_folder_id"),
                 upload.is_present("duplicate"),
                 upload.is_present("replace"),
-            ).await;
+                encryption_pub_key,
+            )
+            .await;
         }
 
         exit(0);

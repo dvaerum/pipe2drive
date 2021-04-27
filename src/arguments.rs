@@ -1,5 +1,3 @@
-
-
 extern crate clap;
 use clap::{App, AppSettings, Arg, ArgMatches, SubCommand};
 
@@ -27,6 +25,7 @@ pub fn get_parsed_arguments<'a>() -> ArgMatches<'a> {
     .arg(Arg::with_name("quiet")
         .long("quiet")
         .help("Will only display Error logs"))
+    // UPLOAD
     .subcommand(SubCommand::with_name("upload")
         .about("Upload a file to Google Drive")
         .arg(Arg::with_name("data_size")
@@ -53,10 +52,14 @@ pub fn get_parsed_arguments<'a>() -> ArgMatches<'a> {
             .long("duplicate")
             .conflicts_with("replace")
             .help("Allow multiple files to have the same name"))
+        .arg(Arg::with_name("encrypt")
+            .long("encrypt")
+            .help("Encrypt the context before uploading it to Google Drive"))
         .arg(Arg::with_name("testing")
             .long("testing")
             .help("Uploading a 100MiB file consisting of the repeated text sequence '0123456789'"))
         )
+    // LIST
     .subcommand(SubCommand::with_name("list")
         .about("List files and there ID")
         .arg(Arg::with_name("folder_id")
@@ -65,6 +68,7 @@ pub fn get_parsed_arguments<'a>() -> ArgMatches<'a> {
             .help("If a folder ID is provided the content of that folder will be listed,\notherwise the content of 'My Drive' will be listed")
             .takes_value(true))
         )
+    // INFO
     .subcommand(SubCommand::with_name("info")
         .about("Get info about ID")
         .arg(Arg::with_name("id")
@@ -73,6 +77,7 @@ pub fn get_parsed_arguments<'a>() -> ArgMatches<'a> {
             .help("Provided the ID of the content of that you want more info about")
             .takes_value(true))
         )
+    // DOWNLOAD
     .subcommand(SubCommand::with_name("download")
         .about("Download a file from Google Drive")
         .arg(Arg::with_name("file_id")
@@ -84,5 +89,5 @@ pub fn get_parsed_arguments<'a>() -> ArgMatches<'a> {
         )
     .get_matches();
 
-    return args
+    return args;
 }

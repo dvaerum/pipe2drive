@@ -3,21 +3,34 @@
 
 # pipe2drive
 
-pipe2drive is a simple program I wrote for myself, because I wanted a way to create a tarball of my files and upload them to Google Drive without having to store the tarball on my system. I didn't want to store the tarball on my system because that would require around as much free space as the data itself, since it wasn't compressible.
+pipe2drive is a simple program I wrote for myself,
+because I wanted a way to create a tarball of my files and upload them to Google Drive without having to store the tarball on my system.
+I didn't want to store the tarball on my system because that would require around as much free space as the data itself, since it wasn't compressible.
+
+Of course, your can use this with any type of data as long as it can be piped your can use pipe2drive ;)
 
 
 # How the program works
 
-You need a credential from Google before you can use pipe2drive. When created, you need to download the credentials and place them here `~/.config/pipe2drive/client_secret.json` or use the `--secret <FILE>` option to select a different location.
+You need a credential from Google before you can use pipe2drive.
+When created, you need to download the credentials and place them here `~/.config/pipe2drive/client_secret.json` or use the `--secret <FILE>` option to select a different location.
 
-The first time using pipe2drive, you will have to create a token. This token is stored here `~/.config/pipe2drive/client_token.json` or you can pick a different location by using the option `--token <FILE>`.  
-**NOTE:** The easiest way to create to `client_token.json` is by running `pipe2drive list`
+The first time using pipe2drive, you will have to create a token.
+This token is stored here `~/.config/pipe2drive/client_token.json` or you can pick a different location by using the option `--token <FILE>`.  
+**NOTE:** The easiest way to create to `client_token.json` is by running `pipe2drive list`.
 
-When using pipe to upload a file to Drive. One thing you have to do is selecting the size of the file you are uploading. Of course, you may not know the size since you are probably uploading data while it is being created. That is okay, you can use an estimate.
+When using pipe to upload a file to Drive. One thing you have to do is selecting the size of the file you are uploading.
+Of course, you may not know the size since you are probably uploading data while it is being created.
+That is okay, you can use an estimate.
 
-If the data you are uploading is bigger than you estimated, multiple files will be uploaded. The first file will be renamed to FILE_NAME.000, the next file will be named FILE_NAME.001 and so on until all the data is uploaded.
+If the data you are uploading is bigger than you estimated, multiple files will be uploaded.
+The first file will be renamed to FILE_NAME.000,
+the next file will be named FILE_NAME.001 and so on until all the data is uploaded.
 
-If the data is less than you estimated, the file will be uploaded and the difference between what you estimated and the actual size will be filled with the value NULL(s) (`0x00`). This has to happen in order to complete the upload.
+If the data is less than you estimated, the file will be uploaded,
+and the difference between what you estimated,
+and the actual size will be filled with the value NULL(s) (`0x00`).
+This has to happen in order to complete the upload.
 
 
 # Help Menu
