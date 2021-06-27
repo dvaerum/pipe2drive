@@ -6,3 +6,4 @@ pipe2drive.iml
 *.snap
 /google-apis-rs
 /.vscode/
+/.gradle/

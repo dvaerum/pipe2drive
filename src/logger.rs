@@ -4,7 +4,7 @@ extern crate chrono;
 extern crate colored;
 use colored::*;
 
-use super::log::{Log, Level, Metadata, Record, SetLoggerError};
+use super::log::{Level, Log, Metadata, Record, SetLoggerError};
 use chrono::Local;
 
 struct SimpleLogger {
@@ -36,24 +36,25 @@ impl Log for SimpleLogger {
             } else {
                 record.module_path().unwrap_or_default()
             };
-            writeln!(self.term.lock(),
+            writeln!(
+                self.term.lock(),
                 "{} {:<5} [{}] {}",
                 Local::now().format("%Y-%m-%d %H:%M:%S,%3f"),
                 level_string,
                 target,
-                record.args())
-                .expect("Something went wrong when trying to write log it stderr");
+                record.args()
+            )
+            .expect("Something went wrong when trying to write log it stderr");
         }
     }
 
-    fn flush(&self) {
-    }
+    fn flush(&self) {}
 }
 
 pub fn init_with_level(level: Level) -> Result<(), SetLoggerError> {
     let logger = SimpleLogger {
         level,
-        term: ::std::io::stderr()
+        term: ::std::io::stderr(),
     };
     log::set_boxed_logger(Box::new(logger))?;
     log::set_max_level(level.to_level_filter());

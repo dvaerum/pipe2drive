@@ -19,7 +19,7 @@ mod logger;
 mod misc;
 mod pipe_buffer;
 
-use crate::misc::print_info;
+use crate::misc::{parse_data_size, print_info};
 use log::Level;
 use std::{
     io::{stdin, StdinLock},
@@ -34,18 +34,18 @@ async fn main() {
         logger::init_with_level(Level::Debug).unwrap();
     } else if matches.is_present("quiet") {
         logger::init_with_level(Level::Error).unwrap()
-    } else if matches.is_present("info") {
+    } else if matches.is_present("info.rs") {
         logger::init_with_level(Level::Info).unwrap();
     } else {
         logger::init_with_level(Level::Warn).unwrap();
     }
-    crypto::load_public_key();
+
     let hub = auth::auth(
         matches.value_of("client_secret_file"),
         matches.value_of("client_token_file"),
     );
 
-    if let Some(id) = matches.subcommand_matches("info") {
+    if let Some(id) = matches.subcommand_matches("info.rs") {
         let info = drive::info(&hub.await, id.value_of("id").unwrap()).await;
         print_info(&info);
         exit(0);
@@ -92,7 +92,9 @@ async fn main() {
         if upload.is_present("testing") {
             drive::upload::<TestBuffer>(
                 &hub.await,
-                TestBuffer::new(1024 * 1024 * 100),
+                TestBuffer::new(
+                    parse_data_size(upload.value_of("testing_size").unwrap()).as_u64() as usize,
+                ),
                 misc::parse_data_size(upload.value_of("data_size").unwrap()).as_u64() as usize,
                 upload.value_of("file_name"),
                 upload.value_of("parent_folder_id"),

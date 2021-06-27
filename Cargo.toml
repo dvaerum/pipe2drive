@@ -10,7 +10,7 @@ edition = "2018"
 default = ["colored"]
 
 [dependencies]
-google-drive3 = "2.0.5+20210322"
+google-drive3 = "*"
 #google-drive3 = {path = "../google-apis-rs/gen/drive3"}
 tokio = { version = "^1.0", features = ["full"] }
 hyper = { version = "^0.14", features = ["full"] }
@@ -32,3 +32,8 @@ lazy_static = "*"
 prettytable-rs = "*"
 chrono = "*"
 colored = { version = "*", optional = true }
+
+
+[dev-dependencies]
+# Needed to test async function in unittest
+tokio-test = "*"

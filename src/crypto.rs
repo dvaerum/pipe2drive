@@ -1,42 +1,72 @@
 use crate::misc::config_file;
 use age::x25519::{Identity, Recipient};
+use secrecy::ExposeSecret;
 use std::fs;
 use std::str::FromStr;
-use secrecy::ExposeSecret;
 
 pub fn load_public_key() -> Recipient {
+    let public_key: Recipient;
     let path = config_file(None, "pipe2drive.pub");
 
-    let private_key = age::x25519::Identity::from(load_private_key());
-    private_key.to_public()
+    if path.exists() {
+        let public_key_string = fs::read_to_string(path.as_path()).expect(
+            format!(
+                "Failed at reading the public key: {}",
+                path.to_str().unwrap()
+            )
+            .as_str(),
+        );
+        public_key = age::x25519::Recipient::from_str(public_key_string.as_str()).expect(&format!(
+            "Failed at reading the public key: {}",
+            path.to_str().unwrap()
+        ));
+        info!("Read the key from: {}", path.as_path().to_str().unwrap());
+    } else {
+        public_key = load_private_key().to_public();
+
+        fs::write(path.as_path(), public_key.to_string().as_bytes()).expect(&format!(
+            "Failed at reading the public key: {}",
+            path.to_str().unwrap()
+        ));
+
+        info!("Write the public key to: {}", path.to_str().unwrap());
+    }
+
+    return public_key;
 }
 
 pub fn load_private_key() -> Identity {
+    let private_key: Identity;
     let path = config_file(None, "pipe2drive.key");
 
-    let private_key: Identity;
     if path.exists() {
-        let private_key_armor = fs::read_to_string(path.as_path()).expect(
+        let private_key_string = fs::read_to_string(path.as_path()).expect(
             format!(
                 "Failed at reading the private key: {}",
                 path.to_str().unwrap()
             )
             .as_str(),
         );
-        private_key = age::x25519::Identity::from_str(private_key_armor.as_str()).expect(
-            format!(
+        private_key =
+            age::x25519::Identity::from_str(private_key_string.as_str()).expect(&format!(
                 "Failed at reading the private key: {}",
                 path.to_str().unwrap()
-            )
-            .as_str(),
-        );
-        println!("read from file: {}", private_key.to_string().expose_secret());
+            ));
+        info!("Read the key from: {}", path.as_path().to_str().unwrap());
     } else {
         private_key = age::x25519::Identity::generate();
-        
-        println!("create the nothing: {}", private_key.to_string().expose_secret());
+
+        fs::write(
+            path.as_path(),
+            private_key.to_string().expose_secret().as_bytes(),
+        )
+        .expect(&format!(
+            "Failed at reading the private key: {}",
+            path.to_str().unwrap()
+        ));
+
+        info!("Write the private key to: {}", path.to_str().unwrap());
     }
 
-
-    private_key
+    return private_key;
 }
