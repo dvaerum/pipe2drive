@@ -1,6 +1,7 @@
 [![Snap Status](https://build.snapcraft.io/badge/dvaerum/pipe2drive.svg)](https://build.snapcraft.io/user/dvaerum/pipe2drive)
 
 
+
 # pipe2drive
 
 pipe2drive is a simple program I wrote for myself,

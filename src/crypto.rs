@@ -4,9 +4,9 @@ use secrecy::ExposeSecret;
 use std::fs;
 use std::str::FromStr;
 
-pub fn load_public_key() -> Recipient {
+pub fn load_public_key(pub_file: Option<&str>) -> Recipient {
     let public_key: Recipient;
-    let path = config_file(None, "pipe2drive.pub");
+    let path = config_file(pub_file, "pipe2drive.pub");
 
     if path.exists() {
         let public_key_string = fs::read_to_string(path.as_path()).expect(
@@ -22,7 +22,7 @@ pub fn load_public_key() -> Recipient {
         ));
         info!("Read the key from: {}", path.as_path().to_str().unwrap());
     } else {
-        public_key = load_private_key().to_public();
+        public_key = load_private_key(None).to_public();
 
         fs::write(path.as_path(), public_key.to_string().as_bytes()).expect(&format!(
             "Failed at reading the public key: {}",
@@ -35,9 +35,9 @@ pub fn load_public_key() -> Recipient {
     return public_key;
 }
 
-pub fn load_private_key() -> Identity {
+pub fn load_private_key(file: Option<&str>) -> Identity {
     let private_key: Identity;
-    let path = config_file(None, "pipe2drive.key");
+    let path = config_file(file, "pipe2drive.key");
 
     if path.exists() {
         let private_key_string = fs::read_to_string(path.as_path()).expect(

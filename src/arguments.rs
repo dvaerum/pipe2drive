@@ -16,15 +16,22 @@ pub fn get_parsed_arguments<'a>() -> ArgMatches<'a> {
         .value_name("FILE")
         .help("Select the file/there the file containing the client token is/should be saved")
         .takes_value(true))
+    .arg(Arg::with_name("info")
+        .long("info")
+        .help("Will display Info logs"))
     .arg(Arg::with_name("debug")
         .long("debug")
         .help("Will display Debug and Info logs"))
-    .arg(Arg::with_name("info.rs")
-        .long("info.rs")
-        .help("Will display Info logs"))
+    .arg(Arg::with_name("trace")
+        .long("trace")
+        .help("Will display Trace, Debug and Info logs"))
     .arg(Arg::with_name("quiet")
         .long("quiet")
         .help("Will only display Error logs"))
+    .arg(Arg::with_name("json")
+        .long("json")
+        .help("Print json object to stdout"))
+
     // UPLOAD
     .subcommand(SubCommand::with_name("upload")
         .about("Upload a file to Google Drive")
@@ -64,6 +71,7 @@ pub fn get_parsed_arguments<'a>() -> ArgMatches<'a> {
             .default_value("100MiB")
             .help("Uploading a 100MiB file consisting of the repeated text sequence '0123456789'"))
         )
+
     // LIST
     .subcommand(SubCommand::with_name("list")
         .about("List files and there ID")
@@ -73,15 +81,17 @@ pub fn get_parsed_arguments<'a>() -> ArgMatches<'a> {
             .help("If a folder ID is provided the content of that folder will be listed,\notherwise the content of 'My Drive' will be listed")
             .takes_value(true))
         )
+
     // INFO
-    .subcommand(SubCommand::with_name("info.rs")
-        .about("Get info.rs about ID")
+    .subcommand(SubCommand::with_name("info")
+        .about("Get info about ID")
         .arg(Arg::with_name("id")
             .value_name("ID")
             .required(true)
-            .help("Provided the ID of the content of that you want more info.rs about")
+            .help("Provided the ID of the content of that you want more info about")
             .takes_value(true))
         )
+
     // DOWNLOAD
     .subcommand(SubCommand::with_name("download")
         .about("Download a file from Google Drive")

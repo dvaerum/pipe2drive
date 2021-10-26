@@ -12,4 +12,4 @@ pub use info::info;
 pub use list::list;
 pub use rename::rename;
 pub use set_description::set_description;
-pub use upload::upload;
+pub use upload::{upload, UploadResult};

@@ -14,6 +14,9 @@ struct SimpleLogger {
 
 impl Log for SimpleLogger {
     fn enabled(&self, metadata: &Metadata) -> bool {
+        if !metadata.target().starts_with("pipe2drive::") {
+            return false;
+        }
         metadata.level() <= self.level
     }
 

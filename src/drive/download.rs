@@ -1,19 +1,17 @@
 use crate::auth::HubType;
-use crate::drive::info::info;
 use crate::drive::list::create_file_list;
 use crate::misc;
 use google_drive3::api::Scope;
 use hyper::body::Bytes;
 use hyper::body::HttpBody;
-use std::io;
-use std::io::{Stdout, Write};
+use std::borrow::BorrowMut;
+use std::io::{Write};
 use std::path::PathBuf;
 use std::process::exit;
+use google_drive3::api::{File};
 
-pub async fn download(hub: &HubType, file_id: &str) {
-    // Get info.rs about file
-    let info = info(hub, file_id).await;
 
+pub async fn download<'a>(hub: &HubType, info: File, mut stream: Option<&mut dyn Write>) {
     // If the file is trashed, don't download
     if info.trashed.is_some() && info.trashed.unwrap() {
         error!(
@@ -49,12 +47,10 @@ pub async fn download(hub: &HubType, file_id: &str) {
     };
 
     // Figure out if there should be written to file or stdout
-    let mut pipe: Option<Stdout> = None;
-    let mut file: Option<::std::fs::File> = None;
-    if atty::is(atty::Stream::Stdout) {
-        file = Some(::std::fs::File::create(&file_name).expect("Unable to open file"));
-    } else {
-        pipe = Some(io::stdout());
+    let mut file;
+    if stream.is_none() {
+        file = ::std::fs::File::create(&file_name).expect("Unable to open file");
+        stream = Some(file.borrow_mut());
     }
 
     // Calulate the total size of all the files
@@ -104,13 +100,12 @@ pub async fn download(hub: &HubType, file_id: &str) {
     let mut written = 0;
 
     let mut write_data = |data: Bytes| {
-        if let Some(writer) = pipe.as_mut() {
+        if let Some(writer) = stream.as_mut() {
             writer
-                .lock()
                 .write_all(&data.to_vec())
                 .expect("failed at sending data to stdout");
         }
-        if let Some(writer) = file.as_mut() {
+        if let Some(writer) = stream.as_mut() {
             writer
                 .write_all(&data.to_vec())
                 .expect("failed writing to file");

@@ -20,7 +20,8 @@ serde_json = "^1.0"
 yup-oauth2 = "^5.0"
 
 age = "*"
-secrecy ="*"
+secrecy = "*"
+ringbuf = "*"
 
 log = "*"
 clap = "*"
@@ -31,8 +32,9 @@ dirs = "*"
 lazy_static = "*"
 prettytable-rs = "*"
 chrono = "*"
+async-std = "*"
+blocking = "*"
 colored = { version = "*", optional = true }
-
 
 [dev-dependencies]
 # Needed to test async function in unittest
