@@ -11,7 +11,7 @@ use std::process::exit;
 use google_drive3::api::{File};
 
 
-pub async fn download<'a>(hub: &HubType, info: File, mut stream: Option<&mut dyn Write>) {
+pub async fn download<'a>(hub: &HubType, info: &File, mut stream: Option<&mut dyn Write>) {
     // If the file is trashed, don't download
     if info.trashed.is_some() && info.trashed.unwrap() {
         error!(
@@ -60,16 +60,16 @@ pub async fn download<'a>(hub: &HubType, info: File, mut stream: Option<&mut dyn
             file.size
                 .as_ref()
                 .unwrap_or_else(|| {
-                    error!("The ID '{}' is not a file", file.id.as_ref().unwrap());
+                    error!("The ID '{:?}' is not a file", file.id.as_ref());
                     exit(misc::EXIT_CODE_011)
                 })
                 .parse::<usize>()
-                .unwrap()
+                .expect(&format!("Failed at converting the `size` variable to `usize`: {:?}", file.size.as_ref()))
         })
         .sum::<usize>();
 
     // Figure out, how much of the last file can be skipped, because of it just being fill'er bytes (0x00)
-    let zeros = files
+    let zero_count = files
         .last()
         .unwrap()
         .description
@@ -85,7 +85,7 @@ pub async fn download<'a>(hub: &HubType, info: File, mut stream: Option<&mut dyn
         .unwrap()
         .parse::<usize>()
         .unwrap();
-    if zeros > size_of_the_last_file {
+    if zero_count > size_of_the_last_file {
         error!("The value found in the description of '{}' (ID: {}) which represents the amount of filler bytes (0x00), is biggere then the actual size of the file. There is clearly something wrong.",
                files.last().unwrap().name.as_ref().unwrap(),
                files.last().unwrap().id.as_ref().unwrap(),
@@ -93,7 +93,7 @@ pub async fn download<'a>(hub: &HubType, info: File, mut stream: Option<&mut dyn
         exit(misc::EXIT_CODE_013);
     }
 
-    let actually_file_size = total_size - zeros;
+    let actually_file_size = total_size - zero_count;
 
     debug!("File size: {}", actually_file_size);
     info!("Starting to download the file: {}", file_name);
@@ -103,16 +103,10 @@ pub async fn download<'a>(hub: &HubType, info: File, mut stream: Option<&mut dyn
         if let Some(writer) = stream.as_mut() {
             writer
                 .write_all(&data.to_vec())
-                .expect("failed at sending data to stdout");
-        }
-        if let Some(writer) = stream.as_mut() {
-            writer
-                .write_all(&data.to_vec())
-                .expect("failed writing to file");
+                .expect("failed to write data");
         }
     };
 
-    // let mut buf = [0; 2 * 1024 * 1024];
     for _file in files {
         let (response, _) = hub
             .files()
@@ -152,6 +146,8 @@ pub async fn download<'a>(hub: &HubType, info: File, mut stream: Option<&mut dyn
                         exit(misc::EXIT_CODE_014)
                     }
                 }
+            } else {
+                break;
             }
         }
     }

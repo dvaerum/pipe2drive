@@ -18,12 +18,11 @@ mod logger;
 mod misc;
 mod pipe_buffer;
 
-use crate::misc::parse_data_size;
+use crate::misc::{parse_data_size, StdinWrapperWithSendSupport};
 use log::Level;
-use std::{
-    io::{stdin, StdinLock},
-    process::exit,
-};
+use std::process::exit;
+
+
 
 #[tokio::main]
 async fn main() {
@@ -98,7 +97,7 @@ async fn main() {
             ).expect("Unable to open file");
             drive::download(
                 &hub_tmp,
-                info,
+                &info,
                 Some(&mut file)
             ).await;
 
@@ -106,7 +105,7 @@ async fn main() {
             let pipe = ::std::io::stdout();
             drive::download(
                 &hub_tmp,
-                info,
+                &info,
                 Some(&mut pipe.lock())
             ).await;
         }
@@ -141,9 +140,9 @@ async fn main() {
             )
             .await;
         } else {
-            upload_result = drive::upload::<StdinLock>(
+            upload_result = drive::upload::<StdinWrapperWithSendSupport>(
                 &hub.await,
-                stdin().lock(),
+                StdinWrapperWithSendSupport::new(),
                 misc::parse_data_size(upload.value_of("data_size").unwrap()).as_u64() as usize,
                 upload.value_of("file_name"),
                 upload.value_of("parent_folder_id"),

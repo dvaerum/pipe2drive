@@ -9,6 +9,9 @@ use prettytable::Table;
 use std::path::PathBuf;
 use std::process::exit;
 
+use tokio::io::{AsyncReadExt, BufReader, Stdin, stdin};
+use tokio::runtime::Runtime;
+
 pub const EXIT_CODE_001: i32 = 01;
 pub const EXIT_CODE_002: i32 = 02;
 pub const EXIT_CODE_003: i32 = 03;
@@ -34,6 +37,27 @@ $"
     )
     .expect("Something is wrong with your regular expression");
 }
+
+pub struct StdinWrapperWithSendSupport {
+    inner: BufReader<Stdin>
+}
+
+impl StdinWrapperWithSendSupport {
+    pub fn new() -> StdinWrapperWithSendSupport {
+        StdinWrapperWithSendSupport {
+            inner: BufReader::new(stdin())
+        }
+    }
+}
+
+impl ::std::io::Read for StdinWrapperWithSendSupport{
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let rt = Runtime::new().unwrap();
+        let data = rt.block_on(self.inner.read_exact(buf));
+        return data;
+    }
+}
+
 
 pub fn config_file(file: Option<&str>, default: &str) -> PathBuf {
     use std::str::FromStr;
@@ -305,5 +329,52 @@ pub fn print_info(file: &File, json: bool) {
         }
 
         table.printstd();
+    }
+}
+
+
+#[cfg(test)]
+pub mod tests {
+    pub fn verify_test_buffer_data(buf: &[u8], start_no: u8, count: usize) -> bool {
+        return verify_test_buffer_data_and_count_nulls(buf, start_no, count, false);
+    }
+
+    pub fn verify_test_buffer_data_and_count_nulls(buf: &[u8], start_no: u8, count: usize, count_nulls: bool) -> bool {
+        if buf.len() < count {
+            panic!("The size of `count` is {} and there by bigger when the size if `buf` which is {}", count, buf.len())
+        }
+        if start_no > 9 {
+            panic!("`start_no` is {}, but it is only allowed to be 0-9", start_no)
+        }
+
+        let mut value_verify: u8;
+        let mut value_buf: u8;
+        for i in 0..buf.len() {
+            // Values for debugging
+            #[cfg(debug)]
+            {
+                if i > buf.len() - 10 {
+                    let debug_tag = true;
+                }
+            }
+
+            value_buf = buf[i];
+            if !count_nulls && i >= count {
+                break;
+            } else if count_nulls && i >= count {
+                if 0 != value_buf {
+                    assert_eq!(0, value_buf);
+                    return false;
+                }
+            } else {
+                value_verify = ((i % 10) as u8 + start_no) % 10 + 48;
+                if value_verify != value_buf {
+                    assert_eq!(value_verify, value_buf);
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 }

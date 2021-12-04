@@ -1,4 +1,5 @@
 use crate::auth::HubType;
+use crate::drive::info::FIELDS;
 use crate::drive::{delete, list, rename, set_description};
 use crate::misc;
 use crate::pipe_buffer::PipeBuffer;
@@ -34,7 +35,7 @@ pub async fn upload<T>(
 
     let mut file_filter = Vec::new();
 
-    // Check if there already exist files with 
+    // Check if there already exist files with
     if !duplicate {
         file_filter = misc::file_filter(
             format!(r#"^{}(\.[0-9]+)?$"#, regex::escape(filename.as_ref())).as_str(),
@@ -79,6 +80,7 @@ pub async fn upload<T>(
             .files()
             .create(req.clone())
             .supports_all_drives(true)
+            .param("fields", FIELDS)
             .add_scope(Scope::Full)
             .upload_resumable(
                 &mut buffer,
@@ -149,83 +151,4 @@ pub async fn upload<T>(
     }
 
     return upload_status;
-}
-
-#[cfg(test)]
-#[allow(non_snake_case)]
-mod tests {
-    // Note this useful idiom: importing names from outer (for mod tests) scope.
-    use crate::auth::{CLIENT_SECRET_FILE, CLIENT_TOKEN_FILE};
-    use crate::misc::{config_file, parse_data_size};
-    use crate::pipe_buffer::TestBuffer;
-    use crate::{auth, drive, misc};
-
-    macro_rules! aw {
-        ($e:expr) => {
-            tokio_test::block_on($e)
-        };
-    }
-
-    #[test]
-    fn test_000_check_needed_files_exists() {
-        let client_secret_path = config_file(None, CLIENT_SECRET_FILE);
-        assert!(client_secret_path.is_file());
-
-        let client_token_path = config_file(None, CLIENT_TOKEN_FILE);
-        assert!(client_token_path.is_file());
-    }
-
-    #[test]
-    fn test_010_upload_3_files_set_diff_size() {
-        let hub = aw!(auth::auth(None, None));
-
-        let result = aw!(drive::upload::<TestBuffer>(
-            &hub,
-            TestBuffer::new(parse_data_size("5 KiB").as_u64() as usize),
-            misc::parse_data_size("2 KiB").as_u64() as usize,
-            Option::from("test_010_upload_3_files_set_diff_size.txt"),
-            None,
-            false,
-            true,
-            None,
-        ));
-
-        assert_eq!(3, result.uploaded_files.len())
-    }
-
-    #[test]
-    fn test_020_upload_1_files_set_diff_size() {
-        let hub = aw!(auth::auth(None, None));
-
-        let result = aw!(drive::upload::<TestBuffer>(
-            &hub,
-            TestBuffer::new(parse_data_size("1 KiB").as_u64() as usize),
-            misc::parse_data_size("2 KiB").as_u64() as usize,
-            Option::from("test_020_upload_1_files_set_diff_size.txt"),
-            None,
-            false,
-            true,
-            None,
-        ));
-
-        assert_eq!(1, result.uploaded_files.len())
-    }
-
-    #[test]
-    fn test_030_upload_1_file_set_exact_size() {
-        let hub = aw!(auth::auth(None, None));
-
-        let result = aw!(drive::upload::<TestBuffer>(
-            &hub,
-            TestBuffer::new(parse_data_size("1 KiB").as_u64() as usize),
-            misc::parse_data_size("1 KiB").as_u64() as usize,
-            Option::from("test_030_upload_1_file_set_exact_size.txt"),
-            None,
-            false,
-            true,
-            None,
-        ));
-
-        assert_eq!(1, result.uploaded_files.len())
-    }
 }
