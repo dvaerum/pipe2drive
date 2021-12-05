@@ -31,7 +31,12 @@ pub async fn upload<T>(
     };
 
     // Select file name if nothing is defined
-    let filename = filename.map_or("Untitled".to_owned(), |x| x.to_owned());
+    let mut filename = filename.map_or(
+        "Untitled".to_owned(), |x| x.to_owned()
+    );
+    if encryption_pub_key.is_some() {
+        filename.push_str(".age")
+    }
 
     let mut file_filter = Vec::new();
 
@@ -70,11 +75,7 @@ pub async fn upload<T>(
             req.parents = Some(vec![parent_folder_id.unwrap().to_owned()]);
         }
 
-        if count == 0 {
-            req.name = Some(filename.to_owned());
-        } else {
-            req.name = Some(format!("{}.{count:0>3}", filename, count = count));
-        }
+        req.name = Some(format!("{}.{count:0>3}", &filename, count = count));
 
         let result = hub
             .files()
@@ -97,22 +98,20 @@ pub async fn upload<T>(
 
                 info!("Uploaded file: '{}'", file.name.as_ref().unwrap());
 
-                if count == 1 {
-                    let new_filename = format!("{}.000", filename);
-
+                if count == 0 {
                     let rename_result = rename(
                         &hub,
                         file.id.as_ref().unwrap(),
-                        new_filename.clone(),
+                        filename.clone(),
                     )
                     .await;
 
                     match rename_result {
-                        Ok(_) => {
-                            file.name = Some(new_filename);
-                            info!("Renamed file: '{0}' to '{0}.000'", filename)
+                        Ok(r) => {
+                            let (_, file) = r;
+                            info!("Renamed file: '{0}.000' to '{0}'", &file.name.unwrap())
                         },
-                        Err(e) => error!("Failed at renaming the file '{}' - {}", filename, e),
+                        Err(e) => error!("Failed at renaming the file '{}' - {}", &filename, e),
                     }
                 }
 
