@@ -4,7 +4,7 @@ use secrecy::ExposeSecret;
 use std::fs;
 use std::str::FromStr;
 
-pub fn load_public_key(pub_file: Option<&str>) -> Recipient {
+pub fn load_public_key(pub_file: Option<String>) -> Recipient {
     let public_key: Recipient;
     let path = config_file(pub_file, "pipe2drive.pub");
 
@@ -35,7 +35,7 @@ pub fn load_public_key(pub_file: Option<&str>) -> Recipient {
     return public_key;
 }
 
-pub fn load_private_key(file: Option<&str>) -> Identity {
+pub fn load_private_key(file: Option<String>) -> Identity {
     let private_key: Identity;
     let path = config_file(file, "pipe2drive.key");
 

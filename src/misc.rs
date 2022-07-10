@@ -59,11 +59,11 @@ impl ::std::io::Read for StdinWrapperWithSendSupport{
 }
 
 
-pub fn config_file(file: Option<&str>, default: &str) -> PathBuf {
+pub fn config_file(file: Option<String>, default: &str) -> PathBuf {
     use std::str::FromStr;
 
     match file {
-        Some(f) => match PathBuf::from_str(f) {
+        Some(f) => match PathBuf::from_str(f.as_str()) {
             Ok(p) => p,
             Err(e) => {
                 error!("{}", e);

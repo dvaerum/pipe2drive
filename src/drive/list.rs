@@ -5,7 +5,7 @@ use google_drive3::api::{File, Scope};
 use std::path::PathBuf;
 use std::process::exit;
 
-pub async fn list(hub: &HubType, parent_folder_id: Option<&str>) -> Vec<File> {
+pub async fn list(hub: &HubType, parent_folder_id: Option<String>) -> Vec<File> {
     let mut files: Vec<File> = Vec::new();
 
     info!("Loading file list");
@@ -22,7 +22,7 @@ pub async fn list(hub: &HubType, parent_folder_id: Option<&str>) -> Vec<File> {
                 .supports_all_drives(true)
                 .q(format!(
                     "'{}' in parents and trashed = false",
-                    parent_folder_id.unwrap()
+                    parent_folder_id.as_ref().clone().unwrap()
                 )
                 .as_str())
         } else {
@@ -72,7 +72,7 @@ pub async fn create_file_list(hub: &HubType, file: &File) -> Vec<File> {
                             regex::escape(tmp_path.file_stem().unwrap().to_str().unwrap())
                         )
                         .as_str(),
-                        &list(hub, Some(p)).await,
+                        &list(hub, Some(p.to_owned())).await,
                     );
                     files.sort_by(|f1, f2| f1.name.as_ref().unwrap().cmp(f2.name.as_ref().unwrap()));
                 }

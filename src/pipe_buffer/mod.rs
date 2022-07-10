@@ -2,9 +2,14 @@ mod handle_writer;
 mod pipe_buffer;
 mod test_buffer;
 
+#[cfg(test)]
+mod unittest_test_buffer;
+mod unittest_handle_writer;
+
 use handle_writer::HandleWriter;
 pub use pipe_buffer::PipeBuffer;
 pub use test_buffer::TestBuffer;
+
 
 #[cfg(test)]
 mod tests {
@@ -15,45 +20,7 @@ mod tests {
     use crate::misc::tests::{verify_test_buffer_data, verify_test_buffer_data_and_count_nulls};
 
     #[test]
-    fn test_10_test_buffer() {
-        let mut buffer: Vec<u8> = Vec::new();
-        let mut test_stream = TestBuffer::new(6);
-        let count = test_stream.read_to_end(&mut buffer).unwrap();
-        assert_eq!(6, count);
-        assert_eq!("012345".as_bytes(), buffer);
-        assert!(verify_test_buffer_data(&buffer, 0, 6));
-
-        let mut buffer: Vec<u8> = Vec::new();
-        let mut test_stream = TestBuffer::new(10);
-        let count = test_stream.read_to_end(&mut buffer).unwrap();
-        assert_eq!(10, count);
-        assert_eq!("0123456789".as_bytes(), buffer);
-        assert!(verify_test_buffer_data(&buffer, 0, 10));
-
-        let mut buffer: Vec<u8> = Vec::new();
-        let mut test_stream = TestBuffer::new(13);
-        let count = test_stream.read_to_end(&mut buffer).unwrap();
-        assert_eq!(13, count);
-        assert_eq!("0123456789012".as_bytes(), buffer);
-        assert!(verify_test_buffer_data(&buffer, 0, 13));
-
-        let mut buffer: Vec<u8> = Vec::new();
-        let mut test_stream = TestBuffer::new(20);
-        let count = test_stream.read_to_end(&mut buffer).unwrap();
-        assert_eq!(20, count);
-        assert_eq!("01234567890123456789".as_bytes(), buffer);
-        assert!(verify_test_buffer_data(&buffer, 0, 20));
-
-        let mut buffer: Vec<u8> = Vec::new();
-        let mut test_stream = TestBuffer::new(27);
-        let count = test_stream.read_to_end(&mut buffer).unwrap();
-        assert_eq!(27, count);
-        assert_eq!("012345678901234567890123456".as_bytes(), buffer);
-        assert!(verify_test_buffer_data(&buffer, 0, 27));
-    }
-
-    #[test]
-    fn test_20_pipe_buffer() {
+    fn test_220_pipe_buffer() {
         const BUFFER_SIZE: usize = 23;
         let mut count: usize;
         let mut buffer: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
@@ -88,7 +55,7 @@ mod tests {
     }
 
     #[test]
-    fn test_21_pipe_buffer() {
+    fn test_221_pipe_buffer() {
         const BUFFER_SIZE: usize = 1024 * 1024 * 1;
         let mut count: usize;
         let mut buffer: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
@@ -119,7 +86,7 @@ mod tests {
     }
 
     #[test]
-    fn test_22_pipe_buffer() {
+    fn test_222_pipe_buffer() {
         const TOTAL_SIZE: usize = 1024 * 1024 * 10;
 
         let mut pipe_stream = PipeBuffer::new(
@@ -286,7 +253,7 @@ mod tests {
     }
 
     #[test]
-    fn test_30_pipe_buffer() {
+    fn test_330_pipe_buffer() {
         const BUFFER_SIZE: usize = 23;
         let mut count: usize;
         let mut buffer: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
@@ -318,7 +285,7 @@ mod tests {
     }
 
     #[test]
-    fn test_40_pipe_buffer() {
+    fn test_440_pipe_buffer() {
         const BUFFER_SIZE: usize = 14;
         let mut count: usize;
         let mut buffer: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
@@ -355,7 +322,7 @@ mod tests {
     }
 
     #[test]
-    fn test_50_pipe_buffer_encryption() {
+    fn test_550_pipe_buffer_encryption() {
         use std::str::FromStr;
         const BUFFER_SIZE: usize = 50;
         let mut _count: usize;

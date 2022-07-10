@@ -19,8 +19,8 @@ pub async fn upload<T>(
     hub: &HubType,
     buffer: T,
     size: usize,
-    filename: Option<&str>,
-    parent_folder_id: Option<&str>,
+    filename: String,
+    parent_folder_id: Option<String>,
     duplicate: bool,
     replace: bool,
     encryption_pub_key: Option<Recipient>,
@@ -30,10 +30,8 @@ pub async fn upload<T>(
         deleted_files: vec![],
     };
 
-    // Select file name if nothing is defined
-    let mut filename = filename.map_or(
-        "Untitled".to_owned(), |x| x.to_owned()
-    );
+    let mut filename = filename.clone();
+
     if encryption_pub_key.is_some() {
         filename.push_str(".age")
     }
@@ -44,7 +42,7 @@ pub async fn upload<T>(
     if !duplicate {
         file_filter = misc::file_filter(
             format!(r#"^{}(\.[0-9]+)?$"#, regex::escape(filename.as_ref())).as_str(),
-            &list(&hub, parent_folder_id).await,
+            &list(&hub, parent_folder_id.clone()).await,
         );
         if file_filter.len() > 0 && !replace {
             error!("The file '{}' already exist, use the replace flag (--replace) \
@@ -72,7 +70,7 @@ pub async fn upload<T>(
     while buffer.is_there_more() {
         let mut req = File::default();
         if parent_folder_id.is_some() {
-            req.parents = Some(vec![parent_folder_id.unwrap().to_owned()]);
+            req.parents = Some(vec![parent_folder_id.as_ref().unwrap().to_owned()]);
         }
 
         req.name = Some(format!("{}.{count:0>3}", &filename, count = count));

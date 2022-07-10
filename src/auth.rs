@@ -21,7 +21,7 @@ pub const CLIENT_SECRET_FILE: &'static str = "client_secret.json";
 pub const CLIENT_TOKEN_FILE: &'static str = "client_token.json";
 
 // reads the provided example client secret, the quick and dirty way.
-async fn read_client_secret(file: Option<&str>) -> ApplicationSecret {
+async fn read_client_secret(file: Option<String>) -> ApplicationSecret {
     let client_secret_path = misc::config_file(file, CLIENT_SECRET_FILE);
 
     let var_name = read_application_secret(&client_secret_path).await;
@@ -33,7 +33,7 @@ async fn read_client_secret(file: Option<&str>) -> ApplicationSecret {
 
 pub type HubType = DriveHub;
 
-pub async fn auth(client_secret_file: Option<&str>, client_token_file: Option<&str>) -> HubType {
+pub async fn auth(client_secret_file: Option<String>, client_token_file: Option<String>) -> HubType {
     let secret = read_client_secret(client_secret_file);
     let client_token_path = misc::config_file(client_token_file, CLIENT_TOKEN_FILE);
 

@@ -19,12 +19,19 @@ serde = "^1.0"
 serde_json = "^1.0"
 yup-oauth2 = "^5.0"
 
-age = "*"
+age = { version = "*", features = ["async"] }
 secrecy = "*"
 ringbuf = "*"
 
+futures = { version = "*" }
+tokio-pipe = { version="*" }
+async-compat = "*"
+pin-project = "*"
+tokio-util = { version = "*", features = ["compat"] }
+chacha20poly1305 = "*"
+
 log = "*"
-clap = "*"
+clap = { version = "*", features = ["derive"] }
 bytesize = "*"
 regex = "*"
 atty = "*"

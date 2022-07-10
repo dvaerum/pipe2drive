@@ -1,5 +1,7 @@
 use std::io;
 use std::io::Read;
+use std::task::Poll;
+use futures::io::AsyncRead;
 
 pub struct TestBuffer {
     counter: usize,
@@ -15,8 +17,8 @@ impl TestBuffer {
     }
 }
 
-impl Read for TestBuffer {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+impl TestBuffer {
+    fn _shared_reader(&mut self, buf: &mut [u8]) -> usize {
         let mut new_counter: usize = self.counter + buf.len();
         if new_counter > self.size {
             new_counter = self.size;
@@ -33,6 +35,26 @@ impl Read for TestBuffer {
         }
         self.counter = new_counter;
 
-        return Ok(tmp_counter);
+        return tmp_counter;
+    }
+}
+
+impl Read for TestBuffer {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let count = self._shared_reader(buf);
+        return Ok(count);
+    }
+}
+
+impl AsyncRead for TestBuffer {
+    fn poll_read(
+           mut self: std::pin::Pin<&mut Self>,
+            _cx: &mut std::task::Context<'_>,
+            buf: &mut [u8],
+        ) -> std::task::Poll<io::Result<usize>>
+        where Self: Unpin,
+        {
+            let count = self._shared_reader(buf);
+            return Poll::Ready(Ok(count))
     }
 }
