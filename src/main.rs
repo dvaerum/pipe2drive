@@ -10,7 +10,6 @@ extern crate prettytable;
 extern crate ringbuf;
 
 use arguments::ArgLogLevel;
-use clap::StructOpt;
 use pipe_buffer::TestBuffer;
 mod arguments;
 mod auth;
@@ -23,20 +22,20 @@ mod pipe_buffer;
 use crate::misc::{parse_data_size, StdinWrapperWithSendSupport};
 use log::Level;
 use std::process::exit;
+use clap::Parser;
 
 
 
 #[tokio::main]
 async fn main() {
-    //let matches = arguments::get_parsed_arguments();
     let args = arguments::Arguments::parse();
 
     let log_level = match args.logging {
-        ArgLogLevel::Error => Level::Error,
-        ArgLogLevel::Warn => Level::Warn,
-        ArgLogLevel::Info => Level::Info,
-        ArgLogLevel::Debug => Level::Debug,
         ArgLogLevel::Trace => Level::Trace,
+        ArgLogLevel::Debug => Level::Debug,
+        ArgLogLevel::Info => Level::Info,
+        ArgLogLevel::Warn => Level::Warn,
+        ArgLogLevel::Error => Level::Error,
     };
 
     logger::init_with_level(log_level).unwrap();

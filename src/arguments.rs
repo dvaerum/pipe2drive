@@ -1,13 +1,13 @@
 extern crate clap;
-use clap::{Parser, AppSettings, Subcommand, Args, ArgEnum};
+
+use clap::{Parser, Subcommand, Args, ValueEnum, builder::PossibleValue};
 
 #[derive(Parser, Debug)]
-#[clap[name = env!("CARGO_PKG_NAME")]]
-#[clap[author = env!("CARGO_PKG_AUTHORS")]]
-#[clap[version = env!("CARGO_PKG_VERSION")]]
+#[clap[name = env ! ("CARGO_PKG_NAME")]]
+#[clap[author = env ! ("CARGO_PKG_AUTHORS")]]
+#[clap[version = env ! ("CARGO_PKG_VERSION")]]
 #[clap[about = "If you pipe data (doesn't matter what data) to this program and then select a name for that data and declare it size, it will be uploaded to Google Drive"]]
 #[clap[long_about = None]]
-#[clap[setting = AppSettings::SubcommandRequiredElseHelp]]
 pub struct Arguments {
     /// Select the file containing the client secret. If you don't have one go here\nhttps://console.developers.google.com/apis/credentials
     #[clap(long)]
@@ -19,11 +19,10 @@ pub struct Arguments {
     pub token: Option<String>,
 
     /// Select log level (can also configures with the environment variable: RUST_LOG)
-    #[clap(arg_enum)]
+    #[clap(value_enum)]
     #[clap(long)]
     #[clap(value_name = "LEVEL")]
-    #[clap(parse(try_from_str = str2logging_level))]
-    #[clap(default_value = option_env!("RUST_LOG").unwrap_or("info"))]
+    #[clap(default_value = option_env ! ("RUST_LOG").unwrap_or("info"))]
     pub logging: ArgLogLevel,
 
     /// Print json object to stdout
@@ -40,11 +39,21 @@ fn str2logging_level(s: &str) -> Result<ArgLogLevel, &'static str> {
     Ok(
         match s.to_lowercase().as_str() {
             "trace" => ArgLogLevel::Trace,
+            "t" => ArgLogLevel::Trace,
+
             "debug" => ArgLogLevel::Debug,
+            "d" => ArgLogLevel::Debug,
+
             "info" => ArgLogLevel::Info,
-            "warn" => ArgLogLevel::Warn,
+            "i" => ArgLogLevel::Info,
+
             "warning" => ArgLogLevel::Warn,
+            "warn" => ArgLogLevel::Warn,
+            "w" => ArgLogLevel::Warn,
+
             "error" => ArgLogLevel::Error,
+            "err" => ArgLogLevel::Error,
+            "e" => ArgLogLevel::Error,
             "quiet" => ArgLogLevel::Error,
             _ => {
                 ArgLogLevel::Warn
@@ -53,28 +62,54 @@ fn str2logging_level(s: &str) -> Result<ArgLogLevel, &'static str> {
     )
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ArgEnum, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ArgLogLevel {
-    Error = 1,
-    Warn,
-    Info,
-    Debug,
     Trace,
+    Debug,
+    Info,
+    Warn,
+    Error,
+}
+
+impl ValueEnum for ArgLogLevel {
+    fn value_variants<'a>() -> &'a [Self] {
+        &[
+            ArgLogLevel::Trace,
+            ArgLogLevel::Debug,
+            ArgLogLevel::Info,
+            ArgLogLevel::Warn,
+            ArgLogLevel::Error,
+        ]
+    }
+
+    fn to_possible_value(&self) -> Option<PossibleValue> {
+        Some(match self {
+            ArgLogLevel::Trace => PossibleValue::new("trace").aliases(["t"]),
+            ArgLogLevel::Debug => PossibleValue::new("debug").aliases(["d"]),
+            ArgLogLevel::Info => PossibleValue::new("info").aliases(["i"]),
+            ArgLogLevel::Warn => PossibleValue::new("warn").aliases(["warn", "w"]),
+            ArgLogLevel::Error => PossibleValue::new("error").aliases(["err", "e", "quiet"]),
+        })
+    }
 }
 
 #[derive(Subcommand, Debug)]
 #[clap[about]]
 pub enum Commands {
     /// Get info about ID
+    #[command(arg_required_else_help = true)]
     Info(Info),
 
     /// List files and there ID
+    #[command(arg_required_else_help = false)]
     List(List),
 
     /// Download a file from Google Drive
+    #[command(arg_required_else_help = true)]
     Download(Download),
 
     /// Upload a file to Google Drive
+    #[command(arg_required_else_help = true)]
     Upload(Upload),
 }
 
@@ -83,12 +118,12 @@ pub struct Info {
     /// Provided the ID of the content of that you want more info about
     #[clap(long)]
     #[clap(value_name = "ID")]
-    pub id: String
+    pub id: String,
 }
 
 #[derive(Args, Debug)]
 pub struct List {
-    /// If a folder ID is provided the content of that folder will be listed,\notherwise the content of 'My Drive' will be listed
+    /// If a folder ID is provided the content of that folder will be listed, otherwise the content of 'My Drive' will be listed
     #[clap(long)]
     #[clap(value_name = "ID")]
     pub folder: Option<String>,
@@ -99,7 +134,7 @@ pub struct Download {
     /// Provided the ID of the file (or one of the split files) you want to download
     #[clap(long)]
     #[clap(value_name = "ID")]
-    pub file: String
+    pub file: String,
 }
 
 #[derive(Args, Debug)]

@@ -14,6 +14,9 @@ Of course, your can use this with any type of data as long as it can be piped yo
 # How the program works
 
 You need a credential from Google before you can use pipe2drive.
+
+> [You can use the following this guide to create a "OAuth client ID"](https://developers.google.com/workspace/guides/create-credentials#oauth-client-id)
+
 When created, you need to download the credentials and place them here `~/.config/pipe2drive/client_secret.json` or use the `--secret <FILE>` option to select a different location.
 
 The first time using pipe2drive, you will have to create a token.

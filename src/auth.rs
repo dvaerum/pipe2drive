@@ -1,17 +1,17 @@
 //extern crate hyper;
 extern crate dirs;
 extern crate google_drive3 as drive3;
-extern crate hyper_rustls;
-extern crate yup_oauth2 as oauth2;
 
 use std::process::exit;
 
-use hyper::Client;
-use hyper_rustls::HttpsConnector;
+use drive3::hyper_rustls::HttpsConnectorBuilder;
+use drive3::hyper_rustls::HttpsConnector;
+use drive3::hyper::client::HttpConnector;
+use drive3::hyper::Client;
 
-use oauth2::read_application_secret;
-use oauth2::ApplicationSecret;
-use oauth2::{InstalledFlowAuthenticator, InstalledFlowReturnMethod};
+use drive3::oauth2::read_application_secret;
+use drive3::oauth2::ApplicationSecret;
+use drive3::oauth2::{InstalledFlowAuthenticator, InstalledFlowReturnMethod};
 
 use drive3::DriveHub;
 
@@ -31,14 +31,14 @@ async fn read_client_secret(file: Option<String>) -> ApplicationSecret {
     })
 }
 
-pub type HubType = DriveHub;
+pub type HubType = DriveHub<HttpsConnector<HttpConnector>>;
 
 pub async fn auth(client_secret_file: Option<String>, client_token_file: Option<String>) -> HubType {
     let secret = read_client_secret(client_secret_file);
     let client_token_path = misc::config_file(client_token_file, CLIENT_TOKEN_FILE);
 
     let auth_result =
-        InstalledFlowAuthenticator::builder(secret.await, InstalledFlowReturnMethod::Interactive)
+        InstalledFlowAuthenticator::builder(secret.await, InstalledFlowReturnMethod::HTTPRedirect)
             .persist_tokens_to_disk(&client_token_path)
             .build()
             .await;
@@ -47,6 +47,12 @@ pub async fn auth(client_secret_file: Option<String>, client_token_file: Option<
         exit(misc::EXIT_CODE_005)
     });
 
-    let client = Client::builder().build(HttpsConnector::with_native_roots());
+    let client = Client::builder().build(
+        HttpsConnectorBuilder::new()
+            .with_native_roots()
+            .https_only()
+            .enable_http2()
+            .build()
+    );
     DriveHub::new(client, auth)
 }

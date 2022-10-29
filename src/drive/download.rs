@@ -2,16 +2,23 @@ use crate::auth::HubType;
 use crate::drive::list::create_file_list;
 use crate::misc;
 use google_drive3::api::Scope;
-use hyper::body::Bytes;
-use hyper::body::HttpBody;
+use google_drive3::hyper::body::{HttpBody, Bytes};
 use std::borrow::BorrowMut;
 use std::io::{Write};
 use std::path::PathBuf;
 use std::process::exit;
 use google_drive3::api::{File};
 
+pub async fn download<'a>(hub: &HubType, info: &File, stream: Option<&mut dyn Write>) {
+    download_overwrite_options(hub, info, stream, None).await
+}
 
-pub async fn download<'a>(hub: &HubType, info: &File, mut stream: Option<&mut dyn Write>) {
+pub (crate) async fn download_overwrite_options<'a>(
+    hub: &HubType,
+    info: &File,
+    mut stream: Option<&mut dyn Write>,
+    overwrite_zero_count: Option<i64>,
+) {
     // If the file is trashed, don't download
     if info.trashed.is_some() && info.trashed.unwrap() {
         error!(
@@ -53,7 +60,7 @@ pub async fn download<'a>(hub: &HubType, info: &File, mut stream: Option<&mut dy
         stream = Some(file.borrow_mut());
     }
 
-    // Calulate the total size of all the files
+    // Calculate the total size of all the files
     let total_size = files
         .iter()
         .map(|file| {
@@ -62,19 +69,13 @@ pub async fn download<'a>(hub: &HubType, info: &File, mut stream: Option<&mut dy
                 .unwrap_or_else(|| {
                     error!("The ID '{:?}' is not a file", file.id.as_ref());
                     exit(misc::EXIT_CODE_011)
-                })
-                .parse::<usize>()
-                .expect(&format!("Failed at converting the `size` variable to `usize`: {:?}", file.size.as_ref()))
-        })
-        .sum::<usize>();
+                }).to_owned()
+        }).sum::<i64>();
 
     // Figure out, how much of the last file can be skipped, because of it just being fill'er bytes (0x00)
-    let zero_count = files
-        .last()
-        .unwrap()
-        .description
-        .as_ref()
-        .map_or(0, |s| s.trim().parse::<usize>().unwrap_or(0));
+    let zero_count = overwrite_zero_count.unwrap_or(
+        files.last().unwrap().description.as_ref().map_or(0, |s| s.trim().parse::<i64>().unwrap_or(0))
+    );
 
     // Some validation of the value found in the description
     let size_of_the_last_file = files
@@ -82,9 +83,7 @@ pub async fn download<'a>(hub: &HubType, info: &File, mut stream: Option<&mut dy
         .unwrap()
         .size
         .as_ref()
-        .unwrap()
-        .parse::<usize>()
-        .unwrap();
+        .unwrap().to_owned();
     if zero_count > size_of_the_last_file {
         error!("The value found in the description of '{}' (ID: {}) which represents the amount of filler bytes (0x00), is biggere then the actual size of the file. There is clearly something wrong.",
                files.last().unwrap().name.as_ref().unwrap(),
@@ -129,12 +128,12 @@ pub async fn download<'a>(hub: &HubType, info: &File, mut stream: Option<&mut dy
             if let Some(_chunk_result) = _chunk_option {
                 match _chunk_result {
                     Ok(_chunk) => {
-                        let _chunk_len = _chunk.len();
+                        let _chunk_len = _chunk.len() as i64;
                         if written >= actually_file_size {
                             break;
                         } else if _chunk_len + written > actually_file_size {
                             let remaining_len = actually_file_size - written;
-                            write_data(_chunk.slice(..remaining_len))
+                            write_data(_chunk.slice(..remaining_len as usize))
                         } else {
                             write_data(_chunk);
                         }

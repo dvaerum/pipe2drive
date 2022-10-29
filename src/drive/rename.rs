@@ -1,7 +1,7 @@
 use crate::auth::HubType;
 use google_drive3::api::{File, Scope};
 use google_drive3::Result;
-use hyper::{Body, Response};
+use google_drive3::hyper::{Body, Response};
 
 pub async fn rename(
     hub: &HubType,
