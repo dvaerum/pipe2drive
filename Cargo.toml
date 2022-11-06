@@ -12,14 +12,13 @@ default = ["colored"]
 [dependencies]
 do_not_close_async_writer = { path = "../do_not_close_async_writer-rs" }
 
-google-drive3 = "*"
+google-drive3 = "4.0.4+20220225"
 #google-drive3 = {path = "../google-apis-rs/gen/drive3"}
 tokio = { version = "^1.0", features = ["full"] }
 hyper = { version = "^0.14", features = ["full"] }
 hyper-rustls = "^0.23.0"
 serde = "^1.0"
 serde_json = "^1.0"
-yup-oauth2 = "^7.0.1"
 
 age = { version = "*", features = ["async"] }
 # age = { path = "./external_libs/rage/age" }

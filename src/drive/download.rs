@@ -4,7 +4,7 @@ use crate::misc;
 use google_drive3::api::Scope;
 use google_drive3::hyper::body::{HttpBody, Bytes};
 use std::borrow::BorrowMut;
-use std::io::{Write};
+use std::io::Write;
 use std::path::PathBuf;
 use std::process::exit;
 use google_drive3::api::{File};
@@ -69,7 +69,7 @@ pub (crate) async fn download_overwrite_options<'a>(
                 .unwrap_or_else(|| {
                     error!("The ID '{:?}' is not a file", file.id.as_ref());
                     exit(misc::EXIT_CODE_011)
-                }).to_owned()
+                }).to_owned().parse::<i64>().unwrap()
         }).sum::<i64>();
 
     // Figure out, how much of the last file can be skipped, because of it just being fill'er bytes (0x00)
@@ -83,7 +83,7 @@ pub (crate) async fn download_overwrite_options<'a>(
         .unwrap()
         .size
         .as_ref()
-        .unwrap().to_owned();
+        .unwrap().to_owned().parse::<i64>().unwrap();
     if zero_count > size_of_the_last_file {
         error!("The value found in the description of '{}' (ID: {}) which represents the amount of filler bytes (0x00), is biggere then the actual size of the file. There is clearly something wrong.",
                files.last().unwrap().name.as_ref().unwrap(),
