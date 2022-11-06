@@ -37,26 +37,26 @@ impl HandleWriter {
 
     // Implemented an wrapper, because the `StreamWriter` in `self.encrypt`
     // requires this method call to write out the leftover data in its inner caches
-    pub fn finish(&mut self) -> Result<usize, io::Error> {
+    pub fn finish(&mut self) -> Option<io::Error> {
         let select_enc = mem::replace(&mut self.inner, SelectEncryption::TempNone);
         match select_enc {
             SelectEncryption::Unencrypt(v) => {
                 self.inner = SelectEncryption::Unencrypt(v);
-                Ok(0)
+                None
             },
             SelectEncryption::Encrypt(enc) => {
                 let result = enc.finish();
                 match result {
-                    Ok((unencrypt, size)) => {
+                    Ok(unencrypt) => {
                         // The writer `UnencryptType` there was wrapped in the
                         // `StreamWriter` type and is returned up-on executing the `finish` method.
                         // It is when saved back into the `self.inner` variable as
                         // the `Unencrypt` enum.
                         self.inner = SelectEncryption::Unencrypt(unencrypt);
-                        Ok(size)
+                        None
                     },
                     Err(e) => {
-                        Err(e)
+                        Some(e)
                     },
                 }
             }

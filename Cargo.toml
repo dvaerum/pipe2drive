@@ -21,8 +21,8 @@ serde = "^1.0"
 serde_json = "^1.0"
 yup-oauth2 = "^7.0.1"
 
-# age = { version = "*", features = ["async"] }
-age = { path = "./external_libs/rage/age" }
+age = { version = "*", features = ["async"] }
+# age = { path = "./external_libs/rage/age" }
 secrecy = "*"
 ringbuf = "0.2.8"
 

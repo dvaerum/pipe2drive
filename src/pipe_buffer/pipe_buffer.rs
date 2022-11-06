@@ -5,6 +5,8 @@ use std::io;
 use std::io::{Read, SeekFrom};
 use std::io::{Seek};
 use std::ptr;
+use std::thread::sleep;
+use std::time::Duration;
 
 use super::HandleWriter;
 
@@ -13,6 +15,7 @@ pub struct PipeBuffer<R> {
     upload_counter: usize,
     max_size: usize,
     eop: bool,
+    eop_cache_size: usize,
     count_nulls: usize,
     streamer_reader: Consumer<u8>,
     streamer_writer: HandleWriter,
@@ -41,13 +44,14 @@ impl<R: Read> PipeBuffer<R> {
             upload_counter: 0,
             max_size: file_size,
             eop: false,
+            eop_cache_size: 1,
             count_nulls: 0,
             streamer_reader: consumer,
             streamer_writer: if encrypt_public_key.is_some() {
                 HandleWriter::new(
                     None,
                     Some(
-                        Encryptor::with_recipients(vec![Box::new(encrypt_public_key.unwrap())])
+                        Encryptor::with_recipients(vec![Box::new(encrypt_public_key.unwrap())]).unwrap()
                             .wrap_output(producer)
                             .unwrap_or_else(|err| {
                                 unimplemented!("No code written to handle the error: {:?}", err)
@@ -105,14 +109,11 @@ impl<R: Read> Read for PipeBuffer<R> {
         };
 
         // Start reading data from inner buffer
-        let result = match self
-            .ring_buffer
-            .read(&mut tmp_buffer)
-        {
+        let result = match self.ring_buffer.read(&mut tmp_buffer) {
             Ok(read_size) => {
                 // Filling (the remain part of) the buffer with 0x00 if there is
                 // no more data from the buffer (Stdin)
-                if self.eop {
+                if self.eop && self.streamer_reader.len() == 0 {
                     let mut buf_ptr = buffer.as_mut_ptr();
                     unsafe {
                         buf_ptr = buf_ptr.offset(read_size as isize);
@@ -163,6 +164,7 @@ impl<R: Read> Read for PipeBuffer<R> {
                                 todo!("Need to implement error handling for ring buffer: {:?}", e)
                             }
                         }
+                        self.streamer_writer.flush().unwrap();
 
                         // Values for debugging
                         #[cfg(any(test, debug))]
@@ -172,14 +174,22 @@ impl<R: Read> Read for PipeBuffer<R> {
                         }
 
                         // Read data from the inner ring buffer
-                        match self.streamer_reader.read(&mut buffer[reader_counter..buffer_len]) {
-                            Ok(size) => {
-                                reader_counter += size;
-                                trace!("Read {} bytes from the ring buffer", size)
+                        if self.streamer_reader.len() > 0 {
+                            match self.streamer_reader.read(&mut buffer[reader_counter..buffer_len]) {
+                                Ok(size) => {
+                                    reader_counter += size;
+                                    trace!("Read {} bytes from the ring buffer", size)
+                                }
+                                Err(e) => {
+                                    match e.kind() {
+                                        io::ErrorKind::WouldBlock => return Ok(0),
+                                        _ => todo!("Need to implement error handling for ring buffer: {:?}", e)
+                                    }
+                                }
                             }
-                            Err(e) => {
-                                 todo!("Need to implement error handling for ring buffer: {:?}", e)
-                            }
+                        } else {
+                            // todo!("what now");
+                            sleep(Duration::from_secs(1))
                         }
 
                         // Values for debugging
@@ -222,46 +232,63 @@ impl<R: Read> Read for PipeBuffer<R> {
         }
 
         // Checking if there is more date and safe it for later
-        if !self.eop && self.streamer_reader.len() == 0 {
-            match self.streamer_writer.finish() {
-                Some(e) => {
-                    todo!("Need to implement error handling for finish: {:?}", e);
-                },
-                None => {
-                    let streamer_reader_len = self.streamer_reader.len();
+        if self.is_there_more() && self.streamer_reader.len() == 0 {
+            let mut streamer_reader_len = self.streamer_reader.len();
 
-                    // If streamer_reader_len is 0, we are going to check if there are
-                    // more data in the inner buffer
-                    if streamer_reader_len == 0 {
-                        let mut _eop_cache: [u8; 1] = [0];
-                        let _eop_cache_result = match self.ring_buffer.read(&mut _eop_cache) {
-                            Ok(_eop_cache_len) => {
-                                // If we cannot even read a single byte, that means that the
-                                // inner buffer is not getting anymore data (aka. consider closed)
-                                if _eop_cache_len == 0 {
-                                    self.eop = true;
+            // If streamer_reader_len is 0, we are going to check if there are
+            // more data in the inner buffer
 
-                                } else if _eop_cache_len == 1 {
-                                    match self.streamer_writer.write(&_eop_cache) {
-                                        Ok(_) => (),
-                                        Err(e) => {
-                                            todo!("Need to implement error handling for _eop_cache: {:?}", e)
+            let mut _loop_count: usize = 0;
+            let mut _count_writes: usize = 0;
+
+            let mut _eop_cache: Vec<u8> = vec![0; self.eop_cache_size];
+            // let mut _eop_cache: [u8; 1] = [0];
+
+            while streamer_reader_len == 0 {
+                let _eop_cache_result = match self.ring_buffer.read(&mut _eop_cache) {
+                    Ok(_eop_cache_len) => {
+                        // If we cannot even read a single byte, that means that the
+                        // inner buffer is not getting anymore data (aka. consider closed)
+                        if _eop_cache_len == 0 && self.is_there_more() {
+                            self.eop = true;
+                            match self.streamer_writer.finish() {
+                                Some(e) => {
+                                    todo!("Need to implement error handling for finish: {:?}", e);
+                                },
+                                None => (),
+                            }
+                        } else if _eop_cache_len == 0 && self.eop {
+                            break;
+                        } else if _eop_cache_len >= 1 {
+                            match self.streamer_writer.write(&_eop_cache[0.._eop_cache_len]) {
+                                Ok(write_size) => {
+                                        _count_writes += write_size;
+                                        if _eop_cache_len != write_size {
+                                            panic!("Data was lost, _eop_cache_len and write_size are not equal - _eop_cache_len: {} - write_size: {}",
+                                                   _eop_cache_len, write_size);
                                         }
-                                    }
-
-                                // This should never be possible
-                                } else {
-                                    unimplemented!(
-                                        "The _eop_cache_len value most only be 0 or 1 not {}",
-                                        _eop_cache_len
-                                    );
+                                    },
+                                Err(e) => {
+                                    todo!("Need to implement error handling for _eop_cache: {:?}", e)
                                 }
                             }
-                            Err(e) => return Err(e),
-                        };
+                            _loop_count += 1;
+
+                        // This should never be possible
+                        } else {
+                            unimplemented!(
+                                "The _eop_cache_len value most only be 0 or 1+ not {}",
+                                _eop_cache_len
+                            );
+                        }
                     }
-                },
-            };
+                    Err(e) => return Err(e),
+                };
+
+                streamer_reader_len = self.streamer_reader.len();
+            }
+
+            self.eop_cache_size = _count_writes;
         }
 
         // Values for debugging
