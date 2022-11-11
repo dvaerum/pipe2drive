@@ -21,6 +21,11 @@ pub struct PipeBuffer<R> {
     streamer_writer: HandleWriter,
 }
 
+// Sourced the value from the variable `CHUNK_SIZE` in the rage package
+// https://github.com/str4d/rage/blob/d3aa905a61c64e5dbdfb788dda402672b93075f3/age/src/primitives/stream.rs#L22
+const CHUNK_SIZE: usize = 64 * 1024;
+pub (crate) const PIPE_BUFFER_RING_BUFFER_SIZE: usize = CHUNK_SIZE * 2;
+
 impl<R: Read> PipeBuffer<R> {
     pub fn new(
         buf: R,
@@ -33,8 +38,8 @@ impl<R: Read> PipeBuffer<R> {
     {
         if encrypt_public_key.is_none() && ring_buffer_size < 3 {
             panic!("The ring_buffer_size cannot be less when 3, without encryption")
-        } else if encrypt_public_key.is_some() && ring_buffer_size < 500 {
-            panic!("The ring_buffer_size cannot be less when 500, with encryption")
+        } else if encrypt_public_key.is_some() && ring_buffer_size < PIPE_BUFFER_RING_BUFFER_SIZE {
+            panic!("The ring_buffer_size cannot be less when {}, with encryption", PIPE_BUFFER_RING_BUFFER_SIZE)
         }
 
         let ring_buffer = RingBuffer::<u8>::new(ring_buffer_size);
@@ -44,7 +49,7 @@ impl<R: Read> PipeBuffer<R> {
             upload_counter: 0,
             max_size: file_size,
             eop: false,
-            eop_cache_size: 1,
+            eop_cache_size: if encrypt_public_key.is_some() { CHUNK_SIZE } else { 1 },
             count_nulls: 0,
             streamer_reader: consumer,
             streamer_writer: if encrypt_public_key.is_some() {
@@ -68,7 +73,7 @@ impl<R: Read> PipeBuffer<R> {
 
     // Return true if there is more data in the inner buffer
     pub fn is_there_more(&self) -> bool {
-        !self.eop
+        !self.eop || self.streamer_reader.len() > 0
     }
 
     // Return the amount of data there have been reading from
@@ -242,7 +247,6 @@ impl<R: Read> Read for PipeBuffer<R> {
             let mut _count_writes: usize = 0;
 
             let mut _eop_cache: Vec<u8> = vec![0; self.eop_cache_size];
-            // let mut _eop_cache: [u8; 1] = [0];
 
             while streamer_reader_len == 0 {
                 let _eop_cache_result = match self.ring_buffer.read(&mut _eop_cache) {
@@ -255,14 +259,17 @@ impl<R: Read> Read for PipeBuffer<R> {
                                 Some(e) => {
                                     todo!("Need to implement error handling for finish: {:?}", e);
                                 },
-                                None => (),
+                                None => {
+                                    self.eop_cache_size = 1;
+                                },
                             }
                         } else if _eop_cache_len == 0 && self.eop {
-                            break;
+                            {
+                                break;
+                            }
                         } else if _eop_cache_len >= 1 {
                             match self.streamer_writer.write(&_eop_cache[0.._eop_cache_len]) {
                                 Ok(write_size) => {
-                                        _count_writes += write_size;
                                         if _eop_cache_len != write_size {
                                             panic!("Data was lost, _eop_cache_len and write_size are not equal - _eop_cache_len: {} - write_size: {}",
                                                    _eop_cache_len, write_size);
@@ -287,8 +294,6 @@ impl<R: Read> Read for PipeBuffer<R> {
 
                 streamer_reader_len = self.streamer_reader.len();
             }
-
-            self.eop_cache_size = _count_writes;
         }
 
         // Values for debugging

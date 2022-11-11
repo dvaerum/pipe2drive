@@ -3,9 +3,11 @@
 mod tests {
     use std::io;
     use std::io::Read;
+    use std::str::FromStr;
     use crate::misc::tests::{verify_test_buffer_data, verify_test_buffer_data_and_count_nulls};
     use crate::pipe_buffer::PipeBuffer;
     use crate::TestBuffer;
+    use crate::pipe_buffer::pipe_buffer::PIPE_BUFFER_RING_BUFFER_SIZE;
 
     #[test]
     fn test_220_pipe_buffer() {
@@ -311,7 +313,10 @@ mod tests {
 
     #[test]
     fn test_550_pipe_buffer_encryption() {
-        use std::str::FromStr;
+        let test_data_size = 30;
+        let pipe_stream_file_size = 500;
+        let pipe_stream_buffiler_size = PIPE_BUFFER_RING_BUFFER_SIZE+1;
+
         const BUFFER_SIZE: usize = 50;
         let mut _count: usize;
         let mut buffer: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
@@ -321,7 +326,12 @@ mod tests {
         ).unwrap();
         let public_key = private_key.to_public();
 
-        let mut pipe_stream = PipeBuffer::new(TestBuffer::new(30), 500, Some(public_key), 500);
+        let mut pipe_stream = PipeBuffer::new(
+            TestBuffer::new(test_data_size),
+            pipe_stream_file_size,
+            Some(public_key),
+            pipe_stream_buffiler_size,
+        );
 
         _count = pipe_stream.read(&mut buffer).unwrap();
         assert_eq!(BUFFER_SIZE, _count);
@@ -343,7 +353,8 @@ mod tests {
         }
 
         // Should succeeded at decrypting data
-        let decryptor = match age::Decryptor::new(&full_buffer[..pipe_stream.get_upload_counter()]).unwrap() {
+        let get_upload_counter = pipe_stream.get_upload_counter();
+        let decryptor = match age::Decryptor::new(&full_buffer[..get_upload_counter]).unwrap() {
             age::Decryptor::Recipients(d) => d,
             _ => unreachable!(),
         };
@@ -389,5 +400,311 @@ mod tests {
         let err = reader.read_to_end(&mut decrypted).unwrap_err();
         let custom_err = io::Error::new(io::ErrorKind::InvalidData, "decryption error");
         assert_eq!(format!("{:?}", custom_err), format!("{:?}", err));
+    }
+
+    #[test]
+    fn test_560_pipe_buffer_encryption() {
+        let test_data_size = PIPE_BUFFER_RING_BUFFER_SIZE * 7 / 3;
+        let pipe_stream_file_size = 500;
+        let pipe_stream_buffiler_size = PIPE_BUFFER_RING_BUFFER_SIZE+1;
+
+        const BUFFER_SIZE: usize = 50;
+        let mut _count: usize;
+        let mut buffer: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
+        let mut full_buffer: Vec<u8> = Vec::new();
+        let private_key = age::x25519::Identity::from_str(
+            "AGE-SECRET-KEY-15RAENVRSHDVGQ6XZXPUWZK4235AVF6EXFQTS3WG8XMHW0RMSD4EQ492LZ5",
+        ).unwrap();
+        let public_key = private_key.to_public();
+
+        let mut pipe_stream = PipeBuffer::new(
+            TestBuffer::new(test_data_size),
+            pipe_stream_file_size,
+            Some(public_key),
+            pipe_stream_buffiler_size,
+        );
+
+        // Loop and read the rest. The actual size is unknown,
+        // but in should be less then 500 bytes
+        let mut _loop_count: usize = 0;
+        while pipe_stream.is_there_more() {
+            _count = pipe_stream.read(&mut buffer).unwrap();
+            full_buffer.extend_from_slice(&buffer[.._count]);
+
+            _loop_count += 1;
+        }
+
+        // Should succeeded at decrypting data
+        let get_upload_counter = pipe_stream.get_upload_counter();
+        let decryptor = match age::Decryptor::new(&full_buffer[..get_upload_counter]).unwrap() {
+            age::Decryptor::Recipients(d) => d,
+            _ => unreachable!(),
+        };
+
+        let mut decrypted: Vec<u8> = Vec::new();
+        let mut reader = decryptor
+            .decrypt(::std::iter::once(&private_key as &dyn age::Identity))
+            .unwrap();
+        reader.read_to_end(&mut decrypted).unwrap();
+
+
+        let mut test_buffer = Vec::new();
+        TestBuffer::new(test_data_size).read_to_end(&mut test_buffer).unwrap();
+        assert_eq!(test_buffer, decrypted);
+    }
+
+    #[test]
+    fn test_561_pipe_buffer_encryption() {
+        let test_data_size = PIPE_BUFFER_RING_BUFFER_SIZE * 7 / 3;
+        let pipe_stream_file_size = PIPE_BUFFER_RING_BUFFER_SIZE * 10;
+        let pipe_stream_buffiler_size = PIPE_BUFFER_RING_BUFFER_SIZE+1;
+
+        const BUFFER_SIZE: usize = 50;
+        let mut _count: usize;
+        let mut buffer: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
+        let mut full_buffer: Vec<u8> = Vec::new();
+        let private_key = age::x25519::Identity::from_str(
+            "AGE-SECRET-KEY-15RAENVRSHDVGQ6XZXPUWZK4235AVF6EXFQTS3WG8XMHW0RMSD4EQ492LZ5",
+        ).unwrap();
+        let public_key = private_key.to_public();
+
+        let mut pipe_stream = PipeBuffer::new(
+            TestBuffer::new(test_data_size),
+            pipe_stream_file_size,
+            Some(public_key),
+            pipe_stream_buffiler_size,
+        );
+
+        // Loop and read the rest. The actual size is unknown,
+        // but in should be less then 500 bytes
+        let mut _loop_count: usize = 0;
+        while pipe_stream.is_there_more() {
+            _count = pipe_stream.read(&mut buffer).unwrap();
+            full_buffer.extend_from_slice(&buffer[.._count]);
+
+            _loop_count += 1;
+        }
+
+        // Should succeeded at decrypting data
+        let get_upload_counter = pipe_stream.get_upload_counter();
+        let decryptor = match age::Decryptor::new(&full_buffer[..get_upload_counter]).unwrap() {
+            age::Decryptor::Recipients(d) => d,
+            _ => unreachable!(),
+        };
+
+        let mut decrypted: Vec<u8> = Vec::new();
+        let mut reader = decryptor
+            .decrypt(::std::iter::once(&private_key as &dyn age::Identity))
+            .unwrap();
+        reader.read_to_end(&mut decrypted).unwrap();
+
+
+        let mut test_buffer = Vec::new();
+        TestBuffer::new(test_data_size).read_to_end(&mut test_buffer).unwrap();
+        assert_eq!(test_buffer, decrypted);
+    }
+
+    #[test]
+    fn test_562_pipe_buffer_encryption() {
+        let test_data_size = PIPE_BUFFER_RING_BUFFER_SIZE * 7 / 3;
+        let pipe_stream_file_size = PIPE_BUFFER_RING_BUFFER_SIZE * 1;
+        let pipe_stream_buffiler_size = PIPE_BUFFER_RING_BUFFER_SIZE+1;
+
+        const BUFFER_SIZE: usize = 50;
+        let mut _count: usize;
+        let mut buffer: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
+        let mut full_buffer: Vec<u8> = Vec::new();
+        let private_key = age::x25519::Identity::from_str(
+            "AGE-SECRET-KEY-15RAENVRSHDVGQ6XZXPUWZK4235AVF6EXFQTS3WG8XMHW0RMSD4EQ492LZ5",
+        ).unwrap();
+        let public_key = private_key.to_public();
+
+        let mut pipe_stream = PipeBuffer::new(
+            TestBuffer::new(test_data_size),
+            pipe_stream_file_size,
+            Some(public_key),
+            pipe_stream_buffiler_size,
+        );
+
+        // Loop and read the rest. The actual size is unknown,
+        // but in should be less then 500 bytes
+        let mut _loop_count: usize = 0;
+        while pipe_stream.is_there_more() {
+            _count = pipe_stream.read(&mut buffer).unwrap();
+            full_buffer.extend_from_slice(&buffer[.._count]);
+
+            _loop_count += 1;
+        }
+
+        // Should succeeded at decrypting data
+        let get_upload_counter = pipe_stream.get_upload_counter();
+        let decryptor = match age::Decryptor::new(&full_buffer[..get_upload_counter]).unwrap() {
+            age::Decryptor::Recipients(d) => d,
+            _ => unreachable!(),
+        };
+
+        let mut decrypted: Vec<u8> = Vec::new();
+        let mut reader = decryptor
+            .decrypt(::std::iter::once(&private_key as &dyn age::Identity))
+            .unwrap();
+        reader.read_to_end(&mut decrypted).unwrap();
+
+
+        let mut test_buffer = Vec::new();
+        TestBuffer::new(test_data_size).read_to_end(&mut test_buffer).unwrap();
+        assert_eq!(test_buffer, decrypted);
+    }
+
+    #[test]
+    fn test_570_pipe_buffer_encryption() {
+        let test_data_size = PIPE_BUFFER_RING_BUFFER_SIZE * 3 / 7;
+        let pipe_stream_file_size = 500;
+        let pipe_stream_buffiler_size = PIPE_BUFFER_RING_BUFFER_SIZE + 1;
+
+        const BUFFER_SIZE: usize = 50;
+        let mut _count: usize;
+        let mut buffer: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
+        let mut full_buffer: Vec<u8> = Vec::new();
+        let private_key = age::x25519::Identity::from_str(
+            "AGE-SECRET-KEY-15RAENVRSHDVGQ6XZXPUWZK4235AVF6EXFQTS3WG8XMHW0RMSD4EQ492LZ5",
+        ).unwrap();
+        let public_key = private_key.to_public();
+
+        let mut pipe_stream = PipeBuffer::new(
+            TestBuffer::new(test_data_size),
+            pipe_stream_file_size,
+            Some(public_key),
+            pipe_stream_buffiler_size,
+        );
+
+        // Loop and read the rest. The actual size is unknown,
+        // but in should be less then 500 bytes
+        let mut _loop_count: usize = 0;
+        while pipe_stream.is_there_more() {
+            _count = pipe_stream.read(&mut buffer).unwrap();
+            full_buffer.extend_from_slice(&buffer[.._count]);
+
+            _loop_count += 1;
+        }
+
+        // Should succeeded at decrypting data
+        let get_upload_counter = pipe_stream.get_upload_counter();
+        let decryptor = match age::Decryptor::new(&full_buffer[..get_upload_counter]).unwrap() {
+            age::Decryptor::Recipients(d) => d,
+            _ => unreachable!(),
+        };
+
+        let mut decrypted: Vec<u8> = Vec::new();
+        let mut reader = decryptor
+            .decrypt(::std::iter::once(&private_key as &dyn age::Identity))
+            .unwrap();
+        reader.read_to_end(&mut decrypted).unwrap();
+
+
+        let mut test_buffer = Vec::new();
+        TestBuffer::new(test_data_size).read_to_end(&mut test_buffer).unwrap();
+        assert_eq!(test_buffer, decrypted);
+    }
+
+    #[test]
+    fn test_571_pipe_buffer_encryption() {
+        let test_data_size = PIPE_BUFFER_RING_BUFFER_SIZE * 3 / 7;
+        let pipe_stream_file_size = PIPE_BUFFER_RING_BUFFER_SIZE * 10;
+        let pipe_stream_buffiler_size = PIPE_BUFFER_RING_BUFFER_SIZE + 1;
+
+        const BUFFER_SIZE: usize = 50;
+        let mut _count: usize;
+        let mut buffer: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
+        let mut full_buffer: Vec<u8> = Vec::new();
+        let private_key = age::x25519::Identity::from_str(
+            "AGE-SECRET-KEY-15RAENVRSHDVGQ6XZXPUWZK4235AVF6EXFQTS3WG8XMHW0RMSD4EQ492LZ5",
+        ).unwrap();
+        let public_key = private_key.to_public();
+
+        let mut pipe_stream = PipeBuffer::new(
+            TestBuffer::new(test_data_size),
+            pipe_stream_file_size,
+            Some(public_key),
+            pipe_stream_buffiler_size,
+        );
+
+        // Loop and read the rest. The actual size is unknown,
+        // but in should be less then 500 bytes
+        let mut _loop_count: usize = 0;
+        while pipe_stream.is_there_more() {
+            _count = pipe_stream.read(&mut buffer).unwrap();
+            full_buffer.extend_from_slice(&buffer[.._count]);
+
+            _loop_count += 1;
+        }
+
+        // Should succeeded at decrypting data
+        let get_upload_counter = pipe_stream.get_upload_counter();
+        let decryptor = match age::Decryptor::new(&full_buffer[..get_upload_counter]).unwrap() {
+            age::Decryptor::Recipients(d) => d,
+            _ => unreachable!(),
+        };
+
+        let mut decrypted: Vec<u8> = Vec::new();
+        let mut reader = decryptor
+            .decrypt(::std::iter::once(&private_key as &dyn age::Identity))
+            .unwrap();
+        reader.read_to_end(&mut decrypted).unwrap();
+
+
+        let mut test_buffer = Vec::new();
+        TestBuffer::new(test_data_size).read_to_end(&mut test_buffer).unwrap();
+        assert_eq!(test_buffer, decrypted);
+    }
+
+    #[test]
+    fn test_572_pipe_buffer_encryption() {
+        let test_data_size = PIPE_BUFFER_RING_BUFFER_SIZE * 3 / 7;
+        let pipe_stream_file_size = PIPE_BUFFER_RING_BUFFER_SIZE / 4;
+        let pipe_stream_buffiler_size = PIPE_BUFFER_RING_BUFFER_SIZE + 1;
+
+        const BUFFER_SIZE: usize = 50;
+        let mut _count: usize;
+        let mut buffer: [u8; BUFFER_SIZE] = [0; BUFFER_SIZE];
+        let mut full_buffer: Vec<u8> = Vec::new();
+        let private_key = age::x25519::Identity::from_str(
+            "AGE-SECRET-KEY-15RAENVRSHDVGQ6XZXPUWZK4235AVF6EXFQTS3WG8XMHW0RMSD4EQ492LZ5",
+        ).unwrap();
+        let public_key = private_key.to_public();
+
+        let mut pipe_stream = PipeBuffer::new(
+            TestBuffer::new(test_data_size),
+            pipe_stream_file_size,
+            Some(public_key),
+            pipe_stream_buffiler_size,
+        );
+
+        // Loop and read the rest. The actual size is unknown,
+        // but in should be less then 500 bytes
+        let mut _loop_count: usize = 0;
+        while pipe_stream.is_there_more() {
+            _count = pipe_stream.read(&mut buffer).unwrap();
+            full_buffer.extend_from_slice(&buffer[.._count]);
+
+            _loop_count += 1;
+        }
+
+        // Should succeeded at decrypting data
+        let get_upload_counter = pipe_stream.get_upload_counter();
+        let decryptor = match age::Decryptor::new(&full_buffer[..get_upload_counter]).unwrap() {
+            age::Decryptor::Recipients(d) => d,
+            _ => unreachable!(),
+        };
+
+        let mut decrypted: Vec<u8> = Vec::new();
+        let mut reader = decryptor
+            .decrypt(::std::iter::once(&private_key as &dyn age::Identity))
+            .unwrap();
+        reader.read_to_end(&mut decrypted).unwrap();
+
+
+        let mut test_buffer = Vec::new();
+        TestBuffer::new(test_data_size).read_to_end(&mut test_buffer).unwrap();
+        assert_eq!(test_buffer, decrypted);
     }
 }
