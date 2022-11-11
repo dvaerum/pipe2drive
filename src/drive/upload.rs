@@ -123,10 +123,10 @@ pub async fn upload<T>(
                         Ok(_) => {
                             file.description = Some(buffer.nulls().to_string());
                             info!("Set the number of concatenated nulls (0x00) \
-                                   bytes to {nulls} in the description for '{filename}.{count:0>3}'",
+                                   bytes to {nulls} in the description for '{filename}{suffix}'",
                                   nulls = buffer.nulls(),
                                   filename = filename,
-                                  count = count)
+                                  suffix = if count == 0 { "".to_owned() } else { format!(".{count:0>3}", count = count) })
                         },
                         Err(e) => warn!("Set the number of concatenated null (0x00) \
                                          bytes in the description - '{}' - {}",
