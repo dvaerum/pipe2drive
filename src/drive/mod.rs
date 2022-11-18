@@ -146,7 +146,7 @@ mod tests {
     }
 
     #[test]
-    fn test_040_upload_big_3_files_set_diff_size() {
+    fn test_040_upload_3_big_files_set_diff_size() {
         let data_size = parse_data_size("50 MiB").as_u64();
         let hub = aw!(auth::auth(None, None));
 
@@ -179,7 +179,7 @@ mod tests {
     }
 
     #[test]
-    fn test_050_upload_big_1_files_set_diff_size() {
+    fn test_050_upload_1_big_files_set_diff_size() {
         let data_size = parse_data_size("30 MiB").as_u64();
         let hub = aw!(auth::auth(None, None));
 
@@ -212,7 +212,7 @@ mod tests {
     }
 
     #[test]
-    fn test_060_upload_big_1_file_set_exact_size() {
+    fn test_060_upload_1_big_file_set_exact_size() {
         let data_size = parse_data_size("50 MiB").as_u64();
         let hub = aw!(auth::auth(None, None));
 
@@ -346,14 +346,75 @@ mod tests {
         ).unwrap();
         let public_key = private_key.to_public();
 
-        let data_size = parse_data_size("15 MiB").as_u64();
+        let data_size = parse_data_size("15 kiB").as_u64();
 
         // Upload file
         let hub = aw!(auth::auth(None, None));
         let upload_result = aw!(drive::upload::<TestBuffer>(
             &hub,
             TestBuffer::new(data_size as usize),
-            parse_data_size("6 MiB").as_u64() as usize,
+            parse_data_size("6 kiB").as_u64() as usize,
+            "test_110_upload_encrypted_file.txt".to_owned(),
+            None,
+            false,
+            true,
+            Some(public_key),
+        ));
+
+        // Verify that only one file was uploaded
+        assert_eq!(3, upload_result.uploaded_files.len());
+
+        // Testing upload by downloading it and decrypting the data
+        let mut encrypted_buffer: Vec<u8> = Vec::new();
+        let mut stream = BufWriter::new(&mut encrypted_buffer);
+        aw!(drive::download(
+            &hub,
+            upload_result.uploaded_files.first().as_ref().expect("The Vec is empty"),
+            Some(stream.get_mut()),
+        ));
+        stream.flush().expect("Failed at flushing the last data from the buffer: stream");
+        drop(stream);
+
+        // Should succeeded at decrypting data,
+        let mut decrypted_buffer: Vec<u8> = Vec::new();
+        let age_decryptor = age::Decryptor::new(&encrypted_buffer[..]).unwrap_or_else(|err| {panic!("descrypt key error - Error: {}", err)});
+
+        let decryptor = match age_decryptor {
+            age::Decryptor::Recipients(d) => d,
+            _ => unreachable!(),
+        };
+
+        decrypted_buffer.clear();
+        let mut reader = decryptor
+            .decrypt(::std::iter::once(&private_key as &dyn age::Identity))
+            .unwrap();
+
+        reader.read_to_end(&mut decrypted_buffer).unwrap_or_else(|err| {panic!("descryption error - Error: {}", err)});
+
+        // Print the decrypted data
+        println!("decrypted_buffer ({}): {:?}", decrypted_buffer.len(), decrypted_buffer);
+
+        // Verify the decrypted data
+        assert_eq!(data_size as usize, decrypted_buffer.len());
+        assert_eq!(verify_test_buffer_data(&decrypted_buffer, 0, data_size as usize), true);
+    }
+
+    #[test]
+    fn test_120_upload_1_encrypted_files_set_diff_size() {
+        // Encryption keys
+        let private_key = age::x25519::Identity::from_str(
+            "AGE-SECRET-KEY-15RAENVRSHDVGQ6XZXPUWZK4235AVF6EXFQTS3WG8XMHW0RMSD4EQ492LZ5",
+        ).unwrap();
+        let public_key = private_key.to_public();
+
+        let data_size = parse_data_size("6 kiB").as_u64();
+
+        // Upload file
+        let hub = aw!(auth::auth(None, None));
+        let upload_result = aw!(drive::upload::<TestBuffer>(
+            &hub,
+            TestBuffer::new(data_size as usize),
+            parse_data_size("15 kiB").as_u64() as usize,
             "test_110_upload_encrypted_file.txt".to_owned(),
             None,
             false,
@@ -377,12 +438,7 @@ mod tests {
 
         // Should succeeded at decrypting data,
         let mut decrypted_buffer: Vec<u8> = Vec::new();
-        let age_decryptor = match age::Decryptor::new(&encrypted_buffer[0..index]) {
-            Ok(x) => x,
-            Err(e) => {
-                println!("descrypt key error - Error: {}", e);
-            },
-        };
+        let age_decryptor = age::Decryptor::new(&encrypted_buffer[..]).unwrap_or_else(|err| {panic!("descrypt key error - Error: {}", err)});
 
         let decryptor = match age_decryptor {
             age::Decryptor::Recipients(d) => d,
@@ -394,13 +450,132 @@ mod tests {
             .decrypt(::std::iter::once(&private_key as &dyn age::Identity))
             .unwrap();
 
-        match reader.read_to_end(&mut decrypted_buffer) {
-            Ok(_t) => break,
-            Err(e) => println!("descryption error - index: {} - Error: {}", index, e),
-        }
+        reader.read_to_end(&mut decrypted_buffer).unwrap_or_else(|err| {panic!("descryption error - Error: {}", err)});
 
         // Print the decrypted data
         println!("decrypted_buffer ({}): {:?}", decrypted_buffer.len(), decrypted_buffer);
+
+        // Verify the decrypted data
+        assert_eq!(data_size as usize, decrypted_buffer.len());
+        assert_eq!(verify_test_buffer_data(&decrypted_buffer, 0, data_size as usize), true);
+    }
+
+    #[test]
+    fn test_140_upload_3_big_encrypted_files_set_diff_size() {
+        // Encryption keys
+        let private_key = age::x25519::Identity::from_str(
+            "AGE-SECRET-KEY-15RAENVRSHDVGQ6XZXPUWZK4235AVF6EXFQTS3WG8XMHW0RMSD4EQ492LZ5",
+        ).unwrap();
+        let public_key = private_key.to_public();
+
+        let data_size = parse_data_size("50 MiB").as_u64();
+
+        // Upload file
+        let hub = aw!(auth::auth(None, None));
+        let upload_result = aw!(drive::upload::<TestBuffer>(
+            &hub,
+            TestBuffer::new(data_size as usize),
+            parse_data_size("20 MiB").as_u64() as usize,
+            "test_110_upload_encrypted_file.txt".to_owned(),
+            None,
+            false,
+            true,
+            Some(public_key),
+        ));
+
+        // Verify that only one file was uploaded
+        assert_eq!(3, upload_result.uploaded_files.len());
+
+        // Testing upload by downloading it and decrypting the data
+        let mut encrypted_buffer: Vec<u8> = Vec::new();
+        let mut stream = BufWriter::new(&mut encrypted_buffer);
+        aw!(drive::download(
+            &hub,
+            upload_result.uploaded_files.first().as_ref().expect("The Vec is empty"),
+            Some(stream.get_mut()),
+        ));
+        stream.flush().expect("Failed at flushing the last data from the buffer: stream");
+        drop(stream);
+
+        // Should succeeded at decrypting data,
+        let mut decrypted_buffer: Vec<u8> = Vec::new();
+        let age_decryptor = age::Decryptor::new(&encrypted_buffer[..]).unwrap_or_else(|err| {panic!("descrypt key error - Error: {}", err)});
+
+        let decryptor = match age_decryptor {
+            age::Decryptor::Recipients(d) => d,
+            _ => unreachable!(),
+        };
+
+        decrypted_buffer.clear();
+        let mut reader = decryptor
+            .decrypt(::std::iter::once(&private_key as &dyn age::Identity))
+            .unwrap();
+
+        reader.read_to_end(&mut decrypted_buffer).unwrap_or_else(|err| {panic!("descryption error - Error: {}", err)});
+
+        // Print the decrypted data
+        // println!("decrypted_buffer ({}): {:?}", decrypted_buffer.len(), decrypted_buffer);
+
+        // Verify the decrypted data
+        assert_eq!(data_size as usize, decrypted_buffer.len());
+        assert_eq!(verify_test_buffer_data(&decrypted_buffer, 0, data_size as usize), true);
+    }
+
+    #[test]
+    fn test_150_upload_1_big_encrypted_file_set_diff_size() {
+        // Encryption keys
+        let private_key = age::x25519::Identity::from_str(
+            "AGE-SECRET-KEY-15RAENVRSHDVGQ6XZXPUWZK4235AVF6EXFQTS3WG8XMHW0RMSD4EQ492LZ5",
+        ).unwrap();
+        let public_key = private_key.to_public();
+
+        let data_size = parse_data_size("30 MiB").as_u64();
+
+        // Upload file
+        let hub = aw!(auth::auth(None, None));
+        let upload_result = aw!(drive::upload::<TestBuffer>(
+            &hub,
+            TestBuffer::new(data_size as usize),
+            parse_data_size("60 MiB").as_u64() as usize,
+            "test_110_upload_encrypted_file.txt".to_owned(),
+            None,
+            false,
+            true,
+            Some(public_key),
+        ));
+
+        // Verify that only one file was uploaded
+        assert_eq!(1, upload_result.uploaded_files.len());
+
+        // Testing upload by downloading it and decrypting the data
+        let mut encrypted_buffer: Vec<u8> = Vec::new();
+        let mut stream = BufWriter::new(&mut encrypted_buffer);
+        aw!(drive::download(
+            &hub,
+            upload_result.uploaded_files.first().as_ref().expect("The Vec is empty"),
+            Some(stream.get_mut()),
+        ));
+        stream.flush().expect("Failed at flushing the last data from the buffer: stream");
+        drop(stream);
+
+        // Should succeeded at decrypting data,
+        let mut decrypted_buffer: Vec<u8> = Vec::new();
+        let age_decryptor = age::Decryptor::new(&encrypted_buffer[..]).unwrap_or_else(|err| {panic!("descrypt key error - Error: {}", err)});
+
+        let decryptor = match age_decryptor {
+            age::Decryptor::Recipients(d) => d,
+            _ => unreachable!(),
+        };
+
+        decrypted_buffer.clear();
+        let mut reader = decryptor
+            .decrypt(::std::iter::once(&private_key as &dyn age::Identity))
+            .unwrap();
+
+        reader.read_to_end(&mut decrypted_buffer).unwrap_or_else(|err| {panic!("descryption error - Error: {}", err)});
+
+        // Print the decrypted data
+        // println!("decrypted_buffer ({}): {:?}", decrypted_buffer.len(), decrypted_buffer);
 
         // Verify the decrypted data
         assert_eq!(data_size as usize, decrypted_buffer.len());

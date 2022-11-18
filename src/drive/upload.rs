@@ -60,6 +60,7 @@ pub async fn upload<T>(
         }
     }
 
+    info!("Starter uploading...");
     let mut buffer = PipeBuffer::new(
         buffer,
         size,

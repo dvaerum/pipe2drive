@@ -1,7 +1,7 @@
 use age::x25519::Recipient;
 use age::Encryptor;
 use ringbuf::{Consumer, RingBuffer};
-use std::io;
+use std::{io, cmp};
 use std::io::{Read, SeekFrom};
 use std::io::{Seek};
 use std::ptr;
@@ -11,14 +11,15 @@ use std::time::Duration;
 use super::HandleWriter;
 
 pub struct PipeBuffer<R> {
-    ring_buffer: R,
+    source_reader: R,
     upload_counter: usize,
     max_size: usize,
     eop: bool,
     eop_cache_size: usize,
     count_nulls: usize,
-    streamer_reader: Consumer<u8>,
-    streamer_writer: HandleWriter,
+    ringbuffer_saved_space: usize,
+    ringbuffer_consumer: Consumer<u8>,
+    ringbuffer_producer: HandleWriter,
 }
 
 // Sourced the value from the variable `CHUNK_SIZE` in the rage package
@@ -28,7 +29,7 @@ pub (crate) const PIPE_BUFFER_RING_BUFFER_SIZE: usize = CHUNK_SIZE * 2;
 
 impl<R: Read> PipeBuffer<R> {
     pub fn new(
-        buf: R,
+        reader: R,
         file_size: usize,
         encrypt_public_key: Option<Recipient>,
         ring_buffer_size: usize,
@@ -45,14 +46,15 @@ impl<R: Read> PipeBuffer<R> {
         let ring_buffer = RingBuffer::<u8>::new(ring_buffer_size);
         let (producer, consumer) = ring_buffer.split();
         PipeBuffer {
-            ring_buffer: buf,
+            source_reader: reader,
             upload_counter: 0,
             max_size: file_size,
             eop: false,
             eop_cache_size: if encrypt_public_key.is_some() { CHUNK_SIZE } else { 1 },
             count_nulls: 0,
-            streamer_reader: consumer,
-            streamer_writer: if encrypt_public_key.is_some() {
+            ringbuffer_saved_space: if encrypt_public_key.is_some() { CHUNK_SIZE } else { 0 },
+            ringbuffer_consumer: consumer,
+            ringbuffer_producer: if encrypt_public_key.is_some() {
                 HandleWriter::new(
                     None,
                     Some(
@@ -73,7 +75,7 @@ impl<R: Read> PipeBuffer<R> {
 
     // Return true if there is more data in the inner buffer
     pub fn is_there_more(&self) -> bool {
-        !self.eop || self.streamer_reader.len() > 0
+        !self.eop || self.ringbuffer_consumer.len() > 0
     }
 
     // Return the amount of data there have been reading from
@@ -107,18 +109,18 @@ impl<R: Read> Read for PipeBuffer<R> {
         }
 
         // Create tmp_buffer to read data into
-        let mut tmp_buffer: Vec<u8> = if self.streamer_reader.len() > buffer_len {
+        let mut tmp_buffer: Vec<u8> = if self.ringbuffer_consumer.len() > buffer_len {
             vec![0; 0]
         } else {
             vec![0; buffer_len]
         };
 
         // Start reading data from inner buffer
-        let result = match self.ring_buffer.read(&mut tmp_buffer) {
+        let result = match self.source_reader.read(&mut tmp_buffer) {
             Ok(read_size) => {
                 // Filling (the remain part of) the buffer with 0x00 if there is
                 // no more data from the buffer (Stdin)
-                if self.eop && self.streamer_reader.len() == 0 {
+                if self.eop && self.ringbuffer_consumer.len() == 0 {
                     let mut buf_ptr = buffer.as_mut_ptr();
                     unsafe {
                         buf_ptr = buf_ptr.offset(read_size as isize);
@@ -136,8 +138,8 @@ impl<R: Read> Read for PipeBuffer<R> {
                     // Values for debugging
                     #[cfg(any(test, debug))]
                     {
-                        _debug_streamer_reader_len = self.streamer_reader.len();
-                        _debug_streamer_reader_remaning = self.streamer_reader.remaining();
+                        _debug_streamer_reader_len = self.ringbuffer_consumer.len();
+                        _debug_streamer_reader_remaning = self.ringbuffer_consumer.remaining();
                     }
 
                     // Check if the `reader_counter` and `writer_counter` is smaller when
@@ -156,31 +158,40 @@ impl<R: Read> Read for PipeBuffer<R> {
                     // in the ring buffer, and that we have read all the data from tmp_buffer
                     // into the ring_buffer.
                     while (buffer_len > reader_counter || tmp_buffer.len() > writer_counter) &&
-                          !(self.streamer_reader.len() == 0 && writer_counter == read_size) {
+                          !(self.ringbuffer_consumer.len() == 0 && writer_counter == read_size) {
+
+                        let end_of_buffer = cmp::min(
+                            writer_counter + if self.ringbuffer_consumer.remaining() > self.ringbuffer_saved_space { 
+                                self.ringbuffer_consumer.remaining() - self.ringbuffer_saved_space } else { self.ringbuffer_consumer.remaining() },
+                            read_size,
+                        );
+                        let sliced_tmp_buffer = &tmp_buffer[writer_counter..end_of_buffer];
 
                         // Write data to the inner buffer ring
-                        match self.streamer_writer.write(
-                            &tmp_buffer[writer_counter..read_size]) {
+                        match self.ringbuffer_producer.write(
+                            sliced_tmp_buffer) {
                             Ok(size) => {
                                 writer_counter += size;
                                 trace!("Wrote {} bytes to the ring buffer", size)
                             }
-                            Err(e) => {
-                                todo!("Need to implement error handling for ring buffer: {:?}", e)
+                            Err(err) => {
+                                match err.kind() {
+                                    _ => todo!("Need to implement error handling for ring buffer: {:?}", err),
+                                }
                             }
                         }
-                        self.streamer_writer.flush().unwrap();
+                        
 
                         // Values for debugging
                         #[cfg(any(test, debug))]
                         {
-                            _debug_streamer_reader_len = self.streamer_reader.len();
-                            _debug_streamer_reader_remaning = self.streamer_reader.remaining();
+                            _debug_streamer_reader_len = self.ringbuffer_consumer.len();
+                            _debug_streamer_reader_remaning = self.ringbuffer_consumer.remaining();
                         }
 
                         // Read data from the inner ring buffer
-                        if self.streamer_reader.len() > 0 {
-                            match self.streamer_reader.read(&mut buffer[reader_counter..buffer_len]) {
+                        if self.ringbuffer_consumer.len() > 0 {
+                            match self.ringbuffer_consumer.read(&mut buffer[reader_counter..buffer_len]) {
                                 Ok(size) => {
                                     reader_counter += size;
                                     trace!("Read {} bytes from the ring buffer", size)
@@ -200,8 +211,8 @@ impl<R: Read> Read for PipeBuffer<R> {
                         // Values for debugging
                         #[cfg(any(test, debug))]
                         {
-                            _debug_streamer_reader_len = self.streamer_reader.len();
-                            _debug_streamer_reader_remaning = self.streamer_reader.remaining();
+                            _debug_streamer_reader_len = self.ringbuffer_consumer.len();
+                            _debug_streamer_reader_remaning = self.ringbuffer_consumer.remaining();
                         }
                     }
 
@@ -232,13 +243,13 @@ impl<R: Read> Read for PipeBuffer<R> {
         // Values for debugging
         #[cfg(any(test, debug))]
         {
-            _debug_streamer_reader_len = self.streamer_reader.len();
-            _debug_streamer_reader_remaning = self.streamer_reader.remaining();
+            _debug_streamer_reader_len = self.ringbuffer_consumer.len();
+            _debug_streamer_reader_remaning = self.ringbuffer_consumer.remaining();
         }
 
         // Checking if there is more date and safe it for later
-        if self.is_there_more() && self.streamer_reader.len() == 0 {
-            let mut streamer_reader_len = self.streamer_reader.len();
+        if self.is_there_more() && self.ringbuffer_consumer.len() == 0 {
+            let mut streamer_reader_len = self.ringbuffer_consumer.len();
 
             // If streamer_reader_len is 0, we are going to check if there are
             // more data in the inner buffer
@@ -249,13 +260,13 @@ impl<R: Read> Read for PipeBuffer<R> {
             let mut _eop_cache: Vec<u8> = vec![0; self.eop_cache_size];
 
             while streamer_reader_len == 0 {
-                let _eop_cache_result = match self.ring_buffer.read(&mut _eop_cache) {
+                let _eop_cache_result = match self.source_reader.read(&mut _eop_cache) {
                     Ok(_eop_cache_len) => {
                         // If we cannot even read a single byte, that means that the
                         // inner buffer is not getting anymore data (aka. consider closed)
                         if _eop_cache_len == 0 && self.is_there_more() {
                             self.eop = true;
-                            match self.streamer_writer.finish() {
+                            match self.ringbuffer_producer.finish() {
                                 Some(e) => {
                                     todo!("Need to implement error handling for finish: {:?}", e);
                                 },
@@ -268,7 +279,7 @@ impl<R: Read> Read for PipeBuffer<R> {
                                 break;
                             }
                         } else if _eop_cache_len >= 1 {
-                            match self.streamer_writer.write(&_eop_cache[0.._eop_cache_len]) {
+                            match self.ringbuffer_producer.write(&_eop_cache[0.._eop_cache_len]) {
                                 Ok(write_size) => {
                                         if _eop_cache_len != write_size {
                                             panic!("Data was lost, _eop_cache_len and write_size are not equal - _eop_cache_len: {} - write_size: {}",
@@ -292,15 +303,15 @@ impl<R: Read> Read for PipeBuffer<R> {
                     Err(e) => return Err(e),
                 };
 
-                streamer_reader_len = self.streamer_reader.len();
+                streamer_reader_len = self.ringbuffer_consumer.len();
             }
         }
 
         // Values for debugging
         #[cfg(any(test, debug))]
         {
-            _debug_streamer_reader_len = self.streamer_reader.len();
-            _debug_streamer_reader_remaning = self.streamer_reader.remaining();
+            _debug_streamer_reader_len = self.ringbuffer_consumer.len();
+            _debug_streamer_reader_remaning = self.ringbuffer_consumer.remaining();
         }
 
         return result;
