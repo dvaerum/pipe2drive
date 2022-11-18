@@ -42,3 +42,7 @@ lazy_static = "*"
 prettytable-rs = "*"
 chrono = "*"
 colored = { version = "*", optional = true }
+
+
+[dev-dependencies]
+function_name = "*"

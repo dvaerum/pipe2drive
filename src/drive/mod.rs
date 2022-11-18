@@ -31,6 +31,8 @@ mod tests {
     use crate::{auth, drive};
     use crate::misc::tests::{verify_test_buffer_data};
 
+    use function_name::named;
+
     macro_rules! aw {
         ($e:expr) => {
             Runtime::new().unwrap().block_on($e)
@@ -46,6 +48,7 @@ mod tests {
         assert!(client_token_path.is_file());
     }
 
+    #[named]
     #[test]
     fn test_010_upload_3_files_set_diff_size() {
         let data_size = parse_data_size("5 Kib").as_u64();
@@ -55,7 +58,7 @@ mod tests {
             &hub,
             TestBuffer::new(data_size as usize),
             parse_data_size("2 KiB").as_u64() as usize,
-            "test_010_upload_3_files_set_diff_size.txt".to_owned(),
+            format!("{}.txt", function_name!()).to_owned(),
             None,
             false,
             true,
@@ -79,6 +82,7 @@ mod tests {
         assert_eq!(verify_test_buffer_data(&buffer, 0, data_size as usize), true);
     }
 
+    #[named]
     #[test]
     fn test_020_upload_1_files_set_diff_size() {
         let data_size = parse_data_size("1 Kib").as_u64();
@@ -88,7 +92,7 @@ mod tests {
             &hub,
             TestBuffer::new(data_size as usize),
             parse_data_size("2 KiB").as_u64() as usize,
-            "test_020_upload_1_files_set_diff_size.txt".to_owned(),
+            format!("{}.txt", function_name!()).to_owned(),
             None,
             false,
             true,
@@ -112,6 +116,7 @@ mod tests {
         assert_eq!(verify_test_buffer_data(&buffer, 0, data_size as usize), true);
     }
 
+    #[named]
     #[test]
     fn test_030_upload_1_file_set_exact_size() {
         let data_size = parse_data_size("1 Kib").as_u64();
@@ -121,7 +126,7 @@ mod tests {
             &hub,
             TestBuffer::new(data_size as usize),
             parse_data_size("1 KiB").as_u64() as usize,
-            "test_030_upload_1_file_set_exact_size.txt".to_owned(),
+            format!("{}.txt", function_name!()).to_owned(),
             None,
             false,
             true,
@@ -145,6 +150,7 @@ mod tests {
         assert_eq!(verify_test_buffer_data(&buffer, 0, data_size as usize), true);
     }
 
+    #[named]
     #[test]
     fn test_040_upload_3_big_files_set_diff_size() {
         let data_size = parse_data_size("50 MiB").as_u64();
@@ -154,7 +160,7 @@ mod tests {
             &hub,
             TestBuffer::new(data_size as usize),
             parse_data_size("20 MiB").as_u64() as usize,
-            "test_big_040_upload_3_files_set_diff_size.txt".to_owned(),
+            format!("{}.txt", function_name!()).to_owned(),
             None,
             false,
             true,
@@ -178,6 +184,7 @@ mod tests {
         assert_eq!(data_size as usize, buffer.len());
     }
 
+    #[named]
     #[test]
     fn test_050_upload_1_big_files_set_diff_size() {
         let data_size = parse_data_size("30 MiB").as_u64();
@@ -187,7 +194,7 @@ mod tests {
             &hub,
             TestBuffer::new(data_size as usize),
             parse_data_size("60 MiB").as_u64() as usize,
-            "test_big_050_upload_1_files_set_diff_size.txt".to_owned(),
+            format!("{}.txt", function_name!()).to_owned(),
             None,
             false,
             true,
@@ -211,6 +218,7 @@ mod tests {
         assert_eq!(data_size as usize, buffer.len());
     }
 
+    #[named]
     #[test]
     fn test_060_upload_1_big_file_set_exact_size() {
         let data_size = parse_data_size("50 MiB").as_u64();
@@ -220,7 +228,7 @@ mod tests {
             &hub,
             TestBuffer::new(data_size as usize),
             parse_data_size("50 MiB").as_u64() as usize,
-            "test_big_060_upload_1_file_set_exact_size.txt".to_owned(),
+            format!("{}.txt", function_name!()).to_owned(),
             None,
             false,
             true,
@@ -244,6 +252,7 @@ mod tests {
         assert_eq!(data_size as usize, buffer.len());
     }
 
+    #[named]
     #[test]
     fn test_100_upload_encrypted_file_and_download_decrypted_file() {
         // Encryption keys
@@ -260,7 +269,7 @@ mod tests {
             &hub,
             TestBuffer::new(data_size as usize),
             parse_data_size("8 KiB").as_u64() as usize,
-            "test_110_upload_encrypted_file.txt".to_owned(),
+            format!("{}.txt", function_name!()).to_owned(),
             None,
             false,
             true,
@@ -338,6 +347,7 @@ mod tests {
         assert_eq!(verify_test_buffer_data(&decrypted_buffer, 0, data_size as usize), true);
     }
 
+    #[named]
     #[test]
     fn test_110_upload_3_encrypted_files_set_diff_size() {
         // Encryption keys
@@ -354,7 +364,7 @@ mod tests {
             &hub,
             TestBuffer::new(data_size as usize),
             parse_data_size("6 kiB").as_u64() as usize,
-            "test_110_upload_encrypted_file.txt".to_owned(),
+            format!("{}.txt", function_name!()).to_owned(),
             None,
             false,
             true,
@@ -399,6 +409,7 @@ mod tests {
         assert_eq!(verify_test_buffer_data(&decrypted_buffer, 0, data_size as usize), true);
     }
 
+    #[named]
     #[test]
     fn test_120_upload_1_encrypted_files_set_diff_size() {
         // Encryption keys
@@ -415,7 +426,7 @@ mod tests {
             &hub,
             TestBuffer::new(data_size as usize),
             parse_data_size("15 kiB").as_u64() as usize,
-            "test_110_upload_encrypted_file.txt".to_owned(),
+            format!("{}.txt", function_name!()).to_owned(),
             None,
             false,
             true,
@@ -460,6 +471,7 @@ mod tests {
         assert_eq!(verify_test_buffer_data(&decrypted_buffer, 0, data_size as usize), true);
     }
 
+    #[named]
     #[test]
     fn test_140_upload_3_big_encrypted_files_set_diff_size() {
         // Encryption keys
@@ -476,7 +488,7 @@ mod tests {
             &hub,
             TestBuffer::new(data_size as usize),
             parse_data_size("20 MiB").as_u64() as usize,
-            "test_110_upload_encrypted_file.txt".to_owned(),
+            format!("{}.txt", function_name!()).to_owned(),
             None,
             false,
             true,
@@ -521,6 +533,7 @@ mod tests {
         assert_eq!(verify_test_buffer_data(&decrypted_buffer, 0, data_size as usize), true);
     }
 
+    #[named]
     #[test]
     fn test_150_upload_1_big_encrypted_file_set_diff_size() {
         // Encryption keys
@@ -537,7 +550,7 @@ mod tests {
             &hub,
             TestBuffer::new(data_size as usize),
             parse_data_size("60 MiB").as_u64() as usize,
-            "test_110_upload_encrypted_file.txt".to_owned(),
+            format!("{}.txt", function_name!()).to_owned(),
             None,
             false,
             true,
