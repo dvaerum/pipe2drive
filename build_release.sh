@@ -17,7 +17,7 @@ if ! ${SNAPCRAFT_BIN} whoami; then
   else
     echo "You need you set the EXPORT_LOGIN variable"
     exit 1
-  fi 
+  fi
 fi
 
 

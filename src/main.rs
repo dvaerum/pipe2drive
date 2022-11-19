@@ -65,14 +65,14 @@ async fn main() {
                 &hub_tmp,
                 &download.file
             ).await;
-    
+
             // If the file is trashed, don't download
             if info.trashed.is_some() && info.trashed.unwrap() {
                 error!("Cannot download the file '{}' because it is trashed",
                        info.name.as_ref().unwrap());
                 exit(misc::EXIT_CODE_012)
             }
-    
+
             if atty::is(atty::Stream::Stdout) {
                 let mut file = ::std::fs::File::create(
                     &info.name.as_ref().unwrap_or(&"unknown_named_file_from_drive".to_owned())
@@ -82,7 +82,7 @@ async fn main() {
                     &info,
                     Some(&mut file)
                 ).await;
-    
+
             } else {
                 let pipe = ::std::io::stdout();
                 drive::download(
@@ -91,7 +91,7 @@ async fn main() {
                     Some(&mut pipe.lock())
                 ).await;
             }
-    
+
             exit(0);
         },
         arguments::Commands::Upload(upload) => {
@@ -99,12 +99,12 @@ async fn main() {
                 error!("You need to pipe something to this program otherwise it has nothing to upload");
                 exit(misc::EXIT_CODE_001);
             }
-    
+
             let mut encryption_pub_key = None;
             if upload.encrypt {
                 encryption_pub_key = Some(crypto::load_public_key(None))
             }
-    
+
             let upload_result: drive::UploadResult;
             if upload.testing {
                 upload_result = drive::upload::<TestBuffer>(

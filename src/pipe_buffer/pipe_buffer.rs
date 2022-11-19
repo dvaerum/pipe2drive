@@ -1,6 +1,6 @@
 use age::x25519::Recipient;
 use age::Encryptor;
-use ringbuf::{Consumer, RingBuffer};
+use ringbuf::{SharedRb};
 use std::{io, cmp};
 use std::io::{Read, SeekFrom};
 use std::io::{Seek};
@@ -9,6 +9,7 @@ use std::thread::sleep;
 use std::time::Duration;
 
 use super::HandleWriter;
+use super::ConsumerArcSharedRbType;
 
 pub struct PipeBuffer<R> {
     source_reader: R,
@@ -18,7 +19,7 @@ pub struct PipeBuffer<R> {
     eop_cache_size: usize,
     count_nulls: usize,
     ringbuffer_saved_space: usize,
-    ringbuffer_consumer: Consumer<u8>,
+    ringbuffer_consumer: ConsumerArcSharedRbType,
     ringbuffer_producer: HandleWriter,
 }
 
@@ -42,8 +43,7 @@ impl<R: Read> PipeBuffer<R> {
         } else if encrypt_public_key.is_some() && ring_buffer_size < PIPE_BUFFER_RING_BUFFER_SIZE {
             panic!("The ring_buffer_size cannot be less when {}, with encryption", PIPE_BUFFER_RING_BUFFER_SIZE)
         }
-
-        let ring_buffer = RingBuffer::<u8>::new(ring_buffer_size);
+        let ring_buffer = SharedRb::<u8, Vec<_>>::new(ring_buffer_size);
         let (producer, consumer) = ring_buffer.split();
         PipeBuffer {
             source_reader: reader,
@@ -99,7 +99,7 @@ impl<R: Read> Read for PipeBuffer<R> {
         #[cfg(any(test, debug))]
         let mut _debug_streamer_reader_len: usize;
         #[cfg(any(test, debug))]
-        let mut _debug_streamer_reader_remaning: usize;
+        let mut _debug_streamer_reader_remaining: usize;
 
         let buffer_len = buffer.len();
 
@@ -139,7 +139,7 @@ impl<R: Read> Read for PipeBuffer<R> {
                     #[cfg(any(test, debug))]
                     {
                         _debug_streamer_reader_len = self.ringbuffer_consumer.len();
-                        _debug_streamer_reader_remaning = self.ringbuffer_consumer.remaining();
+                        _debug_streamer_reader_remaining = self.ringbuffer_consumer.free_len();
                     }
 
                     // Check if the `reader_counter` and `writer_counter` is smaller when
@@ -161,8 +161,8 @@ impl<R: Read> Read for PipeBuffer<R> {
                           !(self.ringbuffer_consumer.len() == 0 && writer_counter == read_size) {
 
                         let end_of_buffer = cmp::min(
-                            writer_counter + if self.ringbuffer_consumer.remaining() > self.ringbuffer_saved_space { 
-                                self.ringbuffer_consumer.remaining() - self.ringbuffer_saved_space } else { self.ringbuffer_consumer.remaining() },
+                            writer_counter + if self.ringbuffer_consumer.free_len() > self.ringbuffer_saved_space {
+                                self.ringbuffer_consumer.free_len() - self.ringbuffer_saved_space } else { self.ringbuffer_consumer.free_len() },
                             read_size,
                         );
                         let sliced_tmp_buffer = &tmp_buffer[writer_counter..end_of_buffer];
@@ -180,13 +180,13 @@ impl<R: Read> Read for PipeBuffer<R> {
                                 }
                             }
                         }
-                        
+
 
                         // Values for debugging
                         #[cfg(any(test, debug))]
                         {
                             _debug_streamer_reader_len = self.ringbuffer_consumer.len();
-                            _debug_streamer_reader_remaning = self.ringbuffer_consumer.remaining();
+                            _debug_streamer_reader_remaining = self.ringbuffer_consumer.free_len();
                         }
 
                         // Read data from the inner ring buffer
@@ -212,7 +212,7 @@ impl<R: Read> Read for PipeBuffer<R> {
                         #[cfg(any(test, debug))]
                         {
                             _debug_streamer_reader_len = self.ringbuffer_consumer.len();
-                            _debug_streamer_reader_remaning = self.ringbuffer_consumer.remaining();
+                            _debug_streamer_reader_remaining = self.ringbuffer_consumer.free_len();
                         }
                     }
 
@@ -244,7 +244,7 @@ impl<R: Read> Read for PipeBuffer<R> {
         #[cfg(any(test, debug))]
         {
             _debug_streamer_reader_len = self.ringbuffer_consumer.len();
-            _debug_streamer_reader_remaning = self.ringbuffer_consumer.remaining();
+            _debug_streamer_reader_remaining = self.ringbuffer_consumer.free_len();
         }
 
         // Checking if there is more date and safe it for later
@@ -311,7 +311,7 @@ impl<R: Read> Read for PipeBuffer<R> {
         #[cfg(any(test, debug))]
         {
             _debug_streamer_reader_len = self.ringbuffer_consumer.len();
-            _debug_streamer_reader_remaning = self.ringbuffer_consumer.remaining();
+            _debug_streamer_reader_remaining = self.ringbuffer_consumer.free_len();
         }
 
         return result;

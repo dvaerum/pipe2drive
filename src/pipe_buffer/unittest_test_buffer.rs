@@ -33,7 +33,7 @@ mod tests_async {
         assert_eq!("0123456789012".as_bytes(), buffer);
         assert!(verify_test_buffer_data(&buffer, 0, 13));
     }
-    
+
     #[test]
     fn test_140_test_buffer() {
         let mut buffer: Vec<u8> = Vec::new();

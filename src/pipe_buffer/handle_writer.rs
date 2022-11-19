@@ -1,10 +1,19 @@
 use age::stream::StreamWriter;
-use ringbuf::Producer;
+use ringbuf::{Producer, Consumer};
+use std::mem::MaybeUninit;
+use std::sync::Arc;
 use std::{io, mem};
 use std::io::{Write};
 use core::option::Option;
 
-type UnencryptType = Producer<u8>;
+
+type SharedRbValueType = u8;
+type ArcSharedRbType = Arc<ringbuf::SharedRb<SharedRbValueType, Vec<MaybeUninit<SharedRbValueType>>>>;
+pub type ProducerArcSharedRbType = Producer<SharedRbValueType, ArcSharedRbType>;
+pub type ConsumerArcSharedRbType = Consumer<SharedRbValueType, ArcSharedRbType>;
+
+
+type UnencryptType = ProducerArcSharedRbType;
 type EncryptType = StreamWriter<UnencryptType>;
 
 pub enum SelectEncryption {
