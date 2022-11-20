@@ -9,16 +9,16 @@ use clap::{Parser, Subcommand, Args, ValueEnum, builder::PossibleValue};
 #[clap[about = "If you pipe data (doesn't matter what data) to this program and then select a name for that data and declare it size, it will be uploaded to Google Drive"]]
 #[clap[long_about = None]]
 pub struct Arguments {
-    /// Select the file containing the client secret. If you don't have one go here\nhttps://console.developers.google.com/apis/credentials
+    /// Select the FILE containing the client secret. If you don't have one go here\nhttps://console.developers.google.com/apis/credentials
     #[clap(long)]
     #[clap(value_name = "FILE")]
     pub secret: Option<String>,
-    /// Select the file/there the file containing the client token is/should be saved
+    /// Select the FILE/there the file containing the client token is/should be saved
     #[clap(long)]
     #[clap(value_name = "FILE")]
     pub token: Option<String>,
 
-    /// Select log level (can also configures with the environment variable: RUST_LOG)
+    /// Select log LEVEL (can also configures with the environment variable: RUST_LOG)
     #[clap(value_enum)]
     #[clap(long)]
     #[clap(value_name = "LEVEL")]
@@ -139,19 +139,25 @@ pub struct Download {
 
 #[derive(Args, Debug)]
 pub struct Upload {
-    /// The size of the data you want to upload.\nExample: 100mib, 1gb or 1048576 aka. 1mib)\nSupported Sizes: b, kb, kib, mb, mib, gb, gib, tb and tib
+    /// The SIZE of the data you want to upload.
+    /// Example: 100mib, 1gb or 1048576 (aka. 1mib)
+    /// Supported Sizes: b, kb, kib, mb, mib, gb, gib, tb & tib
     #[clap(long)]
-    #[clap(value_name = "size")]
+    #[clap(value_name = "SIZE")]
+    #[clap(verbatim_doc_comment)]
     pub size: String,
 
-    /// The name of the file uploaded to Google Drive
+    /// The NAME of the file uploaded to Google Drive
     #[clap(long)]
-    #[clap(value_name = "name")]
+    #[clap(value_name = "NAME")]
     #[clap(default_value = "Untitled")]
     pub filename: String,
 
-    /// The ID of the folder where you want the file to be uploaded to.\nIf this is not defined, the file will be uploaded to 'My Drive'
-    #[clap(long, value_name = "ID")]
+    /// The ID of the folder where you want the file to be uploaded to.
+    /// If this is not defined, the file will be uploaded to 'My Drive'
+    #[clap(long)]
+    #[clap(value_name = "ID")]
+    #[clap(verbatim_doc_comment)]
     pub parent_folder: Option<String>,
 
     /// If a file exists with the same name it will be replaced
@@ -166,13 +172,13 @@ pub struct Upload {
     #[clap(long)]
     pub encrypt: bool,
 
-    /// Uploading a 100MiB file consisting of the repeated text sequence '0123456789'
+    /// Uploading a test file consisting of the repeated text sequence '0123456789'
     #[clap(long)]
     pub testing: bool,
 
-    /// Uploading a 100MiB file consisting of the repeated text sequence '0123456789'
+    /// The SIZE of the uploaded text-file
     #[clap(long)]
-    #[clap(value_name = "size")]
+    #[clap(value_name = "SIZE")]
     #[clap(default_value_t = String::from("100MiB"))]
     pub testing_size: String,
 }

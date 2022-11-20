@@ -93,22 +93,23 @@ pub async fn upload<T>(
 
         match result {
             Ok(r) => {
-                let (_, mut file) = r;
+                let (_, mut uploaded_file) = r;
 
-                info!("Uploaded file: '{}'", file.name.as_ref().unwrap());
+                info!("Uploaded file: '{}'", uploaded_file.name.as_ref().unwrap());
 
                 if count == 0 {
                     let rename_result = rename(
                         &hub,
-                        file.id.as_ref().unwrap(),
+                        uploaded_file.id.as_ref().unwrap(),
                         filename.clone(),
                     )
                     .await;
 
                     match rename_result {
                         Ok(r) => {
-                            let (_, file) = r;
-                            info!("Renamed file: '{0}.000' to '{0}'", &file.name.unwrap())
+                            let (_, rename_file) = r;
+                            info!("Renamed file: '{0}.000' to '{0}'", rename_file.name.as_ref().unwrap());
+                            uploaded_file.name = rename_file.name;
                         },
                         Err(e) => error!("Failed at renaming the file '{}' - {}", &filename, e),
                     }
@@ -117,12 +118,12 @@ pub async fn upload<T>(
                 if !buffer.is_there_more() {
                     let desc_result = set_description(
                         hub,
-                        file.id.as_ref().unwrap(),
+                        uploaded_file.id.as_ref().unwrap(),
                         buffer.nulls().to_string()).await;
 
                     match desc_result {
                         Ok(_) => {
-                            file.description = Some(buffer.nulls().to_string());
+                            uploaded_file.description = Some(buffer.nulls().to_string());
                             info!("Set the number of concatenated nulls (0x00) \
                                    bytes to {nulls} in the description for '{filename}{suffix}'",
                                   nulls = buffer.nulls(),
@@ -136,10 +137,10 @@ pub async fn upload<T>(
                 }
 
                 debug!(r#"FILE ID = "{}" - NAME = {}"#,
-                       file.id.as_ref().unwrap(),
-                       file.name.as_ref().unwrap());
+                       uploaded_file.id.as_ref().unwrap(),
+                       uploaded_file.name.as_ref().unwrap());
 
-                upload_status.uploaded_files.push(file);
+                upload_status.uploaded_files.push(uploaded_file);
             }
             Err(e) => {
                 error!("Failed at uploading '{}'", e);

@@ -1,11 +1,11 @@
 name: pipe2drive
-version: '0.2.2'
+version: '0.3.0'
 summary: Pipe your data to Google Drive
 description: |
   If you pipe data (doesn't matter what data) to this program and then select a name for that data and declare it size, it will be uploaded to Google Drive.
   pipe2drive is a simple program I wrote for myself, because I wanted a way to create a tarball of my files and upload them to Google Drive without having to store the tarball on my system. I didn't want to store the tarball on my system because that would require around as much free space as the data itself, since it wasn't compressible.
 
-base: core
+base: core22
 grade: stable
 confinement: strict
 architectures:
@@ -21,10 +21,7 @@ parts:
     build-environment:
       - RUST_BACKTRACE: 'full'
     build-packages:
-      - gcc-multilib
-      - libssl-dev
-      - pkg-config
-#    stage-packages:
+      - cargo
 
 apps:
   pipe2drive:
