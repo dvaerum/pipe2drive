@@ -1,0 +1,16 @@
+name: Run Unittests 
+run-name: ${{ github.actor }} is running unittests 🚀
+on: [push, pull_request]
+jobs:
+  unittest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --verbose
