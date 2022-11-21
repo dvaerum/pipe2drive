@@ -11,6 +11,9 @@ jobs:
           toolchain: stable
           override: true
       - uses: actions-rs/cargo@v1
+        env:
+          RUST_BACKTRACE: 1
+          PIPE2DRIVE_CLIENT_SECRET_DATA: ${{ secrets.PIPE2DRIVE_CLIENT_SECRET_DATA }}
         with:
           command: test
-          args: --verbose -- --test-threads=1 --nocapture
+          args: -- --test-threads=1 --nocapture
