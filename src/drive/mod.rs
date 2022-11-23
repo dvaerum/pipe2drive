@@ -19,19 +19,23 @@ use download::download_overwrite_options;
 
 #[cfg(test)]
 mod tests {
+    use std::env;
     use std::io::{BufWriter, Write, Read};
+    use std::iter::once;
     use std::str::FromStr;
-    // use futures::future::ok;
     use tokio::runtime::Runtime;
+    use serde_json;
 
     // Note this useful idiom: importing names from outer (for mod tests) scope.
-    use crate::auth::{CLIENT_SECRET_FILE, CLIENT_TOKEN_FILE};
+    use crate::auth::{CLIENT_SECRET_ENV, CLIENT_SECRET_FILE, CLIENT_TOKEN_ENV, CLIENT_TOKEN_FILE};
     use crate::misc::{config_file, parse_data_size};
     use crate::pipe_buffer::TestBuffer;
     use crate::{auth, drive};
     use crate::misc::tests::{verify_test_buffer_data};
 
     use function_name::named;
+    use google_drive3::oauth2::parse_application_secret;
+    use serde_json::Value;
 
     macro_rules! aw {
         ($e:expr) => {
@@ -41,23 +45,35 @@ mod tests {
 
     #[test]
     fn test_000_check_needed_files_exists() {
-        let client_secret_path = config_file(None, CLIENT_SECRET_FILE);
-        assert!(client_secret_path.is_file());
+        if let Ok(client_secret_data) = env::var(CLIENT_SECRET_ENV) {
+            let app_secret = parse_application_secret(&client_secret_data);
+            let app_secret_is_ok = app_secret.is_ok();
+            assert!(app_secret_is_ok, "The client secret data is invalid - Data: {:?}", &client_secret_data);
+        } else {
+            let client_secret_path = config_file(None, CLIENT_SECRET_FILE);
+            assert!(client_secret_path.is_file(), "The client secret file is missing - Path: {:?}", &client_secret_path);
+        }
 
-        let client_token_path = config_file(None, CLIENT_TOKEN_FILE);
-        assert!(client_token_path.is_file());
+        if let Ok(client_token_data) = env::var(CLIENT_TOKEN_ENV) {
+            let client_token_json = serde_json::from_str::<Value>(&client_token_data);
+            let client_token_json_is_ok = client_token_json.is_ok();
+            assert!(client_token_json_is_ok, "The client token data is invalid - Data: {:?}", &client_token_data);
+        } else {
+            let client_token_path = config_file(None, CLIENT_TOKEN_FILE);
+            assert!(client_token_path.is_file(), "The client token file is missing - Path: {:?}", &client_token_path);
+        }
     }
 
     #[named]
     #[test]
     fn test_010_upload_3_files_set_diff_size() {
-        let data_size = parse_data_size("5 Kib").as_u64();
+        let data_size = parse_data_size("7 Kib").as_u64();
         let hub = aw!(auth::auth(None, None));
 
         let result = aw!(drive::upload::<TestBuffer>(
             &hub,
             TestBuffer::new(data_size as usize),
-            parse_data_size("2 KiB").as_u64() as usize,
+            parse_data_size("3 KiB").as_u64() as usize,
             format!("{}.txt", function_name!()).to_owned(),
             None,
             false,
@@ -330,7 +346,7 @@ mod tests {
 
             decrypted_buffer.clear();
             let mut reader = decryptor
-                .decrypt(::std::iter::once(&private_key as &dyn age::Identity))
+                .decrypt(once(&private_key as &dyn age::Identity))
                 .unwrap();
 
             match reader.read_to_end(&mut decrypted_buffer) {
@@ -396,7 +412,7 @@ mod tests {
 
         decrypted_buffer.clear();
         let mut reader = decryptor
-            .decrypt(::std::iter::once(&private_key as &dyn age::Identity))
+            .decrypt(once(&private_key as &dyn age::Identity))
             .unwrap();
 
         reader.read_to_end(&mut decrypted_buffer).unwrap_or_else(|err| {panic!("descryption error - Error: {}", err)});
@@ -458,7 +474,7 @@ mod tests {
 
         decrypted_buffer.clear();
         let mut reader = decryptor
-            .decrypt(::std::iter::once(&private_key as &dyn age::Identity))
+            .decrypt(once(&private_key as &dyn age::Identity))
             .unwrap();
 
         reader.read_to_end(&mut decrypted_buffer).unwrap_or_else(|err| {panic!("descryption error - Error: {}", err)});
@@ -520,7 +536,7 @@ mod tests {
 
         decrypted_buffer.clear();
         let mut reader = decryptor
-            .decrypt(::std::iter::once(&private_key as &dyn age::Identity))
+            .decrypt(once(&private_key as &dyn age::Identity))
             .unwrap();
 
         reader.read_to_end(&mut decrypted_buffer).unwrap_or_else(|err| {panic!("descryption error - Error: {}", err)});
@@ -582,7 +598,7 @@ mod tests {
 
         decrypted_buffer.clear();
         let mut reader = decryptor
-            .decrypt(::std::iter::once(&private_key as &dyn age::Identity))
+            .decrypt(once(&private_key as &dyn age::Identity))
             .unwrap();
 
         reader.read_to_end(&mut decrypted_buffer).unwrap_or_else(|err| {panic!("descryption error - Error: {}", err)});

@@ -54,6 +54,7 @@ pub (crate) async fn auth(client_secret_file: Option<String>, client_token_file:
     let client_token_path = misc::config_file(client_token_file, CLIENT_TOKEN_FILE);
 
     if !client_token_path.exists() {
+        debug!("No client token file found - Creating one");
         if let Ok(data) = env::var(CLIENT_TOKEN_ENV) {
             tokio::fs::File::create(&client_token_path).await.unwrap_or_else(|err| {
                 error!("Error creating the client token file - Error: {err} - Path: {:?}", &client_token_path);

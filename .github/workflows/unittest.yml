@@ -14,6 +14,7 @@ jobs:
         env:
           RUST_BACKTRACE: 1
           PIPE2DRIVE_CLIENT_SECRET_DATA: ${{ secrets.PIPE2DRIVE_CLIENT_SECRET_DATA }}
+          PIPE2DRIVE_CLIENT_TOKEN_DATA: ${{ secrets.PIPE2DRIVE_CLIENT_TOKEN_DATA }}
         with:
           command: test
           args: -- --test-threads=1 --nocapture
