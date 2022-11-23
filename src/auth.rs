@@ -2,7 +2,7 @@
 extern crate dirs;
 extern crate google_drive3 as drive3;
 
-use std::env;
+use std::{env};
 use std::process::exit;
 
 use drive3::hyper_rustls::HttpsConnectorBuilder;
@@ -16,11 +16,13 @@ use drive3::oauth2::ApplicationSecret;
 use drive3::oauth2::{InstalledFlowAuthenticator, InstalledFlowReturnMethod};
 
 use drive3::DriveHub;
+use tokio::io::AsyncWriteExt;
 
 use super::misc;
 
 // Mainly use for testing.
 pub const CLIENT_SECRET_ENV: &'static str = "PIPE2DRIVE_CLIENT_SECRET_DATA";
+pub const CLIENT_TOKEN_ENV: &'static str = "PIPE2DRIVE_CLIENT_TOKEN_DATA";
 
 pub const CLIENT_SECRET_FILE: &'static str = "client_secret.json";
 pub const CLIENT_TOKEN_FILE: &'static str = "client_token.json";
@@ -50,6 +52,18 @@ pub (crate) async fn auth(client_secret_file: Option<String>, client_token_file:
     };
 
     let client_token_path = misc::config_file(client_token_file, CLIENT_TOKEN_FILE);
+
+    if !client_token_path.exists() {
+        if let Ok(data) = env::var(CLIENT_TOKEN_ENV) {
+            tokio::fs::File::create(&client_token_path).await.unwrap_or_else(|err| {
+                error!("Error creating the client token file - Error: {err} - Path: {:?}", &client_token_path);
+                exit(misc::EXIT_CODE_004)
+            }).write_all(data.as_ref()).await.unwrap_or_else(|err|{
+                error!("Error creating the client token file - Error: {err} - Path: {:?}", &client_token_path);
+                exit(misc::EXIT_CODE_004)
+            });
+        };
+    }
 
     let auth_result =
         InstalledFlowAuthenticator::builder(client_secret, InstalledFlowReturnMethod::HTTPRedirect)
