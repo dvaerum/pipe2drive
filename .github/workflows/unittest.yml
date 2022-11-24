@@ -47,6 +47,10 @@ jobs:
           find ~/ -ls
 
       - name: Test that the snap works
+        env:
+          RUST_BACKTRACE: 1
+          PIPE2DRIVE_CLIENT_SECRET_DATA: ${{ secrets.PIPE2DRIVE_CLIENT_SECRET_DATA }}
+          PIPE2DRIVE_CLIENT_TOKEN_DATA: ${{ secrets.PIPE2DRIVE_CLIENT_TOKEN_DATA }}
         run: |
           sudo snap install --dangerous ${{ steps.snapcraft.outputs.snap }}
           echo '=== Environment Variables in Snap: Begin ==='
