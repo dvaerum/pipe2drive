@@ -64,9 +64,12 @@ pub fn config_file(file: Option<String>, default: &str) -> PathBuf {
 
     match file {
         Some(f) => match PathBuf::from_str(f.as_str()) {
-            Ok(p) => p,
-            Err(e) => {
-                error!("{}", e);
+            Ok(path) => {
+                debug!("The path was selected - path: {path}"));
+                path
+            }
+            Err(err) => {
+                error!("Failed at creating `PathBuf` obj from `String` - Error: {err}");
                 exit(EXIT_CODE_003)
             }
         },
