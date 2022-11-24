@@ -7,7 +7,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - run: echo '${{ env.GITHUB_BASE_REF }}'
+      - run: echo '${{ github.ref_name }}'
 
       - uses: actions-rs/toolchain@v1
         with:
@@ -29,7 +29,7 @@ jobs:
           path: ~/.config/pipe2drive
 
   snapcraft:
-    needs: unittest
+    needs: [unittest]
     if: ${{ github.event.unittest.conclusion == 'success' }}
     runs-on: ubuntu-latest
     strategy:
