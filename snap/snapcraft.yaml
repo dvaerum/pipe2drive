@@ -34,7 +34,7 @@ apps:
   pipe2drive:
     command: bin/pipe2drive
     plugs:
-      - ca-certificates
+      - network
     environment:
       HOME: ${SNAP_USER_COMMON}
       XDG_CONFIG_HOME: ${SNAP_USER_COMMON}/.config
