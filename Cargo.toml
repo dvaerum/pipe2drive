@@ -10,8 +10,7 @@ edition = "2018"
 default = ["colored"]
 
 [dependencies]
-google-drive3 = "4.0.4+20220225"
-#google-drive3 = {path = "../google-apis-rs/gen/drive3"}
+google-drive3 = { version = "4.0.4" }
 tokio = { version = "^1.0", features = ["full"] }
 hyper = { version = "^0.14", features = ["full"] }
 hyper-rustls = "^0.23.0"
@@ -19,7 +18,6 @@ serde = "^1.0"
 serde_json = "^1.0"
 
 age = { version = "*", features = ["async"] }
-# age = { path = "./external_libs/rage/age" }
 secrecy = "*"
 ringbuf = "*"
 
