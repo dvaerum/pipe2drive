@@ -5,11 +5,13 @@ jobs:
   unittest:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
+
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           override: true
+
       - uses: actions-rs/cargo@v1
         env:
           RUST_BACKTRACE: 1
@@ -18,3 +20,38 @@ jobs:
         with:
           command: test
           args: -- --test-threads=1 --nocapture
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: pipe2drive-config-folder
+          path: ~/.config/pipe2drive
+
+  snapcraft:
+    if: ${{ github.event.unittest.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [amd64, arm64, armhf]
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: snapcore/action-build@v1
+        id: snapcraft
+
+      - run: |
+          sudo snap install --dangerous ${{ steps.snapcraft.outputs.snap }}
+          snap run pipe2drive --version
+          snap run pipe2drive upload --replace --size 100mib --filename testing_snap_build.txt --testing --testing-size 90mib
+          snap run pipe2drive upload --replace --size 100mib --filename testing_encrypted_snap_build.txt --testing --testing-size 90mib
+
+      - run: |
+          find ~/ -ls
+
+      - name: Upload Snap (edge)
+        if: github.ref == 'refs/heads/dev'
+        uses: snapcore/action-publish@v1
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+        with:
+          snap: ${{ steps.snapcraft.outputs.snap }}
+          release: edge
