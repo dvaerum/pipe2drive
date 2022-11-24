@@ -7,12 +7,13 @@ on:
     branches:
       - main
       - dev
+
   pull_request:
     branches:
       - main
 
-Schedule:
-  -cron: '0 3 * * *'
+  schedule:
+    - cron: '0 3 * * *'
 
 jobs:
   unittest:
