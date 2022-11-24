@@ -50,7 +50,7 @@ jobs:
           find ~/ -ls
 
       - name: Upload Snap (edge)
-        if: github.ref_name == 'dev'
+        if: ${{ github.ref_name == 'dev' }}
         uses: snapcore/action-publish@v1
         env:
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
