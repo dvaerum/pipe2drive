@@ -56,7 +56,7 @@ jobs:
       - name: Upload snap as an artifact
         uses: actions/upload-artifact@v3
         with:
-          name: pipe2drive-${{ matrix.arch }}_${{ github.ref_name }}.snap
+          name: pipe2drive.${{ matrix.arch }}.snap
           path: ${{ steps.snapcraft.outputs.snap }}
 
       - name: Search for the Mozilla root certificate on the host system
