@@ -40,6 +40,11 @@ jobs:
       - uses: snapcore/action-build@v1
         id: snapcraft
 
+      - uses: actions/upload-artifact@v3
+        with:
+          name: pipe2drive_${{ github.ref_name }}.snap
+          path: ${{ steps.snapcraft.outputs.snap }}
+
       - run: |
           find ~/ -ls
 
