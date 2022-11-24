@@ -65,7 +65,7 @@ pub fn config_file(file: Option<String>, default: &str) -> PathBuf {
     match file {
         Some(f) => match PathBuf::from_str(f.as_str()) {
             Ok(path) => {
-                debug!("The path was selected - path: {path}"));
+                debug!("The path was selected - path: {:?}", path);
                 path
             }
             Err(err) => {
