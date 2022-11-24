@@ -87,8 +87,18 @@ jobs:
           file: 'Cargo.toml'
           field: 'package.version'
 
+      - name: Find Tag
+        id: get-tag-if-any
+        uses: digital-ai/query-tag-action@v2
+        with:
+          include: 'v*'
+          exclude: '*-rc*'
+          commit-ish: 'HEAD'
+          exact-match: 'true'
+
       - run: |
           echo "snapcraft version: ${{ steps.snapcraft-version.outputs.data }}"
           echo "cargo version: ${{ steps.cargo-version.outputs.value }}"
+          echo "tag: ${{ steps.get-tag-if-any.outputs.tag }}"
           echo "github ref type: ${{ github.ref_type }}"
           echo "github ref name: ${{ github.ref_name }}"
