@@ -27,6 +27,7 @@ jobs:
           path: ~/.config/pipe2drive
 
   snapcraft:
+    needs: unittest
     if: ${{ github.event.unittest.conclusion == 'success' }}
     runs-on: ubuntu-latest
     strategy:
