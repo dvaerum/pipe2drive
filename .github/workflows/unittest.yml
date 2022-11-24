@@ -32,6 +32,8 @@ jobs:
     strategy:
       matrix:
         arch: [amd64, arm64, armhf]
+    concurrency:
+      group: upload-to-google-drive
     steps:
       - uses: actions/checkout@v3
 
@@ -41,11 +43,12 @@ jobs:
       - run: |
           find ~/ -ls
 
-      - run: |
+      - name: Test that the snap works
+        run: |
           sudo snap install --dangerous ${{ steps.snapcraft.outputs.snap }}
           snap run pipe2drive --version
-          snap run pipe2drive upload --replace --size 100mib --filename testing_snap_build.txt --testing --testing-size 90mib
-          snap run pipe2drive upload --replace --size 100mib --filename testing_encrypted_snap_build.txt --testing --testing-size 90mib
+          snap run pipe2drive upload --replace --size 100mib --filename testing_snap_build_${{ matrix.arch }}.txt --testing --testing-size 90mib
+          snap run pipe2drive upload --replace --size 100mib --filename testing_snap_build_${{ matrix.arch }}_encrypted.txt --testing --testing-size 90mib
 
       - run: |
           find ~/ -ls
@@ -62,15 +65,9 @@ jobs:
   merge-dev-to-main-branch:
     needs: [unittest,snapcraft]
     if : ${{ github.ref_name == 'dev' }}
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-
-      - name: Run read-yaml action
-        id: snapcraft-version
-        uses: jbutcher5/read-yaml@main
-        with:
-          file: './snap/snapcraft.yaml'
-          key: version
 
       - name: Run read-yaml action
         id: snapcraft-version
