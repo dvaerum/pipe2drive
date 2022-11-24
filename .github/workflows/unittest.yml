@@ -112,19 +112,16 @@ jobs:
           echo "github ref name: ${{ github.ref_name }}"
 
       - name: Make pull request to merge dev to main
+        if: >-
+          ${{ steps.get-tag-if-any.outputs.tag == format('v{0}', steps.snapcraft-version.outputs.data) && 
+              steps.get-tag-if-any.outputs.tag == format('v{0}', steps.cargo-version.outputs.value) }}
         uses: peter-evans/create-pull-request@v3
         with:
           base: ${{ github.ref_name }}
           title: Merge dev to main and bump the version to ${{ steps.get-tag-if-any.outputs.tag }}"
           body: |
-            Merge dev to main
-            - snapcraft version: ${{ steps.snapcraft-version.outputs.data }}
-            - cargo version: ${{ steps.cargo-version.outputs.value }}
-            - tag: ${{ steps.get-tag-if-any.outputs.tag }}
-            - github ref type: ${{ github.ref_type }}
-            - github ref name: ${{ github.ref_name }}
+            This pull request was automatically created by GitHub Action.
+            This pull request will merge dev to main and bump the version to ${{ steps.get-tag-if-any.outputs.tag }}.
           labels: |
-            merge-dev-to-main-branch
-          reviewers: |
-            jonas-schievink
+            new-release
           token: ${{ secrets.GITHUB_TOKEN }}
