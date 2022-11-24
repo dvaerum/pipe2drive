@@ -103,3 +103,22 @@ jobs:
           echo "tag: ${{ steps.get-tag-if-any.outputs.tag }}"
           echo "github ref type: ${{ github.ref_type }}"
           echo "github ref name: ${{ github.ref_name }}"
+
+      - name: Make pull request to merge dev to main
+        uses: peter-evans/create-pull-request@v3
+        with:
+          base: main
+          branch: merge-dev-to-main-branch
+          title: Merge dev to main
+          body: |
+            Merge dev to main
+            - snapcraft version: ${{ steps.snapcraft-version.outputs.data }}
+            - cargo version: ${{ steps.cargo-version.outputs.value }}
+            - tag: ${{ steps.get-tag-if-any.outputs.tag }}
+            - github ref type: ${{ github.ref_type }}
+            - github ref name: ${{ github.ref_name }}
+          labels: |
+            merge-dev-to-main-branch
+          reviewers: |
+            jonas-schievink
+          token: ${{ secrets.GITHUB_TOKEN }}
