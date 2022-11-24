@@ -49,10 +49,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: snapcore/action-build@v1
+      - name: Build snap
+        uses: snapcore/action-build@v1
         id: snapcraft
 
-      - uses: actions/upload-artifact@v3
+      - name: Upload snap as an artifact
+        uses: actions/upload-artifact@v3
         with:
           name: pipe2drive-_${{ matrix.arch }}_${{ github.ref_name }}.snap
           path: ${{ steps.snapcraft.outputs.snap }}
@@ -83,7 +85,8 @@ jobs:
           PIPE2DRIVE_CLIENT_TOKEN_DATA: ${{ secrets.PIPE2DRIVE_CLIENT_TOKEN_DATA }}
         run: snap run pipe2drive upload --replace --size 100mib --filename testing_snap_build_${{ matrix.arch }}_encrypted.txt --testing --testing-size 90mib
 
-      - uses: actions/upload-artifact@v3
+      - name: Upload configs from pipe2drive created by the snap
+        uses: actions/upload-artifact@v3
         with:
           name: pipe2drive-config-folder-from-the-snap.${{ matrix.arch }}
           path: ~/snap/pipe2drive/common/.config/pipe2drive
@@ -97,14 +100,15 @@ jobs:
           snap: ${{ steps.snapcraft.outputs.snap }}
           release: edge
 
-      - uses: actions/upload-artifact@v3
+      - name: Upload snapcraft log
+        uses: actions/upload-artifact@v3
         if: ${{ github.ref_name == 'dev' }}
         with:
           name: pipe2drive-snap-upload-log.${{ matrix.arch }}
           path: ~/.cache/snapcraft/log
 
   merge-dev-to-main-branch:
-    # needs: [unittest,snapcraft]
+    needs: [unittest,snapcraft]
     if : ${{ github.ref_name == 'dev' }}
     runs-on: ubuntu-latest
     steps:
