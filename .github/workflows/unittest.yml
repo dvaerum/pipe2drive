@@ -42,7 +42,7 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: pipe2drive_${{ github.ref_name }}.snap
+          name: pipe2drive-_${{ matrix.arch }}_${{ github.ref_name }}.snap
           path: ${{ steps.snapcraft.outputs.snap }}
 
       - run: |
