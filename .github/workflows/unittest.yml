@@ -132,12 +132,18 @@ jobs:
           commit-ish: 'HEAD'
           exact-match: 'true'
 
-      - run: |
-          echo "snapcraft version: ${{ steps.snapcraft-version.outputs.data }}"
-          echo "cargo version: ${{ steps.cargo-version.outputs.value }}"
-          echo "tag: ${{ steps.get-tag-if-any.outputs.tag }}"
-          echo "github ref type: ${{ github.ref_type }}"
-          echo "github ref name: ${{ github.ref_name }}"
+      - run: >-
+          echo " 
+          snapcraft version: ${{ steps.snapcraft-version.outputs.data }}
+          -
+          cargo version: ${{ steps.cargo-version.outputs.value }}
+          -
+          tag: ${{ steps.get-tag-if-any.outputs.tag }}
+          -
+          ref_type: ${{ github.ref_type }}
+          -
+          ref_name: ${{ github.ref_name }}
+          "
 
       - name: Make pull request to merge dev to main
         if: >-
