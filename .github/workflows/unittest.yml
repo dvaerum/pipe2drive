@@ -153,18 +153,6 @@ jobs:
         if: >-
           ${{ steps.get-tag-if-any.outputs.tag == format('v{0}', steps.snapcraft-version.outputs.data) && 
               steps.get-tag-if-any.outputs.tag == format('v{0}', steps.cargo-version.outputs.value) }}
-        uses: peter-evans/create-pull-request@v3
-        with:
-          base: ${{ github.ref_name }}
-          title: Merge dev to main and bump the version to ${{ steps.get-tag-if-any.outputs.tag }}"
-          body: |
-            This pull request was automatically created by GitHub Action.
-            This pull request will merge dev to main and bump the version to ${{ steps.get-tag-if-any.outputs.tag }}.
-          labels: |
-            new-release
-          token: ${{ secrets.TOKEN_GITHUB }}
-
-      - name: Run the Action
         uses: devops-infra/action-pull-request@v0.5.3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
