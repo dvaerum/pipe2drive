@@ -30,7 +30,6 @@ jobs:
 
   snapcraft:
     needs: [unittest]
-    if: ${{ github.event.unittest.conclusion == 'success' }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -51,7 +50,7 @@ jobs:
           find ~/ -ls
 
       - name: Upload Snap (edge)
-        if: github.ref == 'refs/heads/dev'
+        if: github.ref_name == 'dev'
         uses: snapcore/action-publish@v1
         env:
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
