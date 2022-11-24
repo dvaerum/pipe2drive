@@ -76,7 +76,7 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: pipe2drive-config-folder-from-the-snap
+          name: pipe2drive-config-folder-from-the-snap.${{ matrix.arch }}
           path: ~/snap/pipe2drive/common/.config/pipe2drive
 
       - name: Upload Snap (edge)
@@ -87,6 +87,12 @@ jobs:
         with:
           snap: ${{ steps.snapcraft.outputs.snap }}
           release: edge
+
+      - uses: actions/upload-artifact@v3
+        if: ${{ github.ref_name == 'dev' }}
+        with:
+          name: pipe2drive-snap-upload-log.${{ matrix.arch }}
+          path: ~/.cache/snapcraft/log
 
   merge-dev-to-main-branch:
     # needs: [unittest,snapcraft]
