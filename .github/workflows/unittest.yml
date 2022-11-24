@@ -63,7 +63,7 @@ jobs:
           release: edge
 
   merge-dev-to-main-branch:
-    needs: [unittest,snapcraft]
+    # needs: [unittest,snapcraft]
     if : ${{ github.ref_name == 'dev' }}
     runs-on: ubuntu-latest
     steps:
@@ -74,7 +74,7 @@ jobs:
         uses: jbutcher5/read-yaml@main
         with:
           file: './snap/snapcraft.yaml'
-          key: version
+          key-path: '["version"]'
 
       - uses: dangdennis/toml-action@main
         id: cargo-version
