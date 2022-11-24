@@ -32,8 +32,6 @@ jobs:
     strategy:
       matrix:
         arch: [amd64, arm64, armhf]
-    concurrency:
-      group: upload-to-google-drive
     steps:
       - uses: actions/checkout@v3
 
