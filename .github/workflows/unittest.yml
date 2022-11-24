@@ -58,35 +58,30 @@ jobs:
           path: ${{ steps.snapcraft.outputs.snap }}
 
       - name: Search for the Mozilla root certificate on the host system
-        run: |
-          echo '=== Look for certificates file: Begin ==='
-          find /var/ssl /usr/share/ssl /usr/local/ssl /usr/local/openssl /usr/local/etc/openssl /usr/local/share /usr/lib/ssl /usr/ssl /etc/openssl /etc/pki/ca-trust/extracted/pem /etc/pki/tls /etc/ssl /etc/certs /opt/etc/ssl /data/data/com.termux/files/usr/etc/tls /boot/system/data/ssl -type f \( -name cert.pem -o -name certs.pem -o -name ca-bundle.pem -o -name cacert.pem -o -name ca-certificates.crt -o -name ca-certificates.crt -o -name ca-root-nss.crt -o -name ca-bundle.crt -o -name CARootCertificates.pem -o -name tls-ca-bundle.pem \) -ls || true 2> /dev/null
-          echo '=== Look for certificates file: End ==='
+        run: find /var/ssl /usr/share/ssl /usr/local/ssl /usr/local/openssl /usr/local/etc/openssl /usr/local/share /usr/lib/ssl /usr/ssl /etc/openssl /etc/pki/ca-trust/extracted/pem /etc/pki/tls /etc/ssl /etc/certs /opt/etc/ssl /data/data/com.termux/files/usr/etc/tls /boot/system/data/ssl -type f \( -name cert.pem -o -name certs.pem -o -name ca-bundle.pem -o -name cacert.pem -o -name ca-certificates.crt -o -name ca-certificates.crt -o -name ca-root-nss.crt -o -name ca-bundle.crt -o -name CARootCertificates.pem -o -name tls-ca-bundle.pem \) -ls || true
 
-      - name: Test that the snap works
+      - name: Install the snap package pipe2drive
+        run: sudo snap install --dangerous ${{ steps.snapcraft.outputs.snap }}
+
+      - name: Show sorted list of all environment variables in the snap - pipe2drive
+        run: echo env | snap run --shell pipe2drive | sort
+
+      - name: Search for the Mozilla root certificate in the snap - pipe2drive
+        run: echo 'find /var/ssl /usr/share/ssl /usr/local/ssl /usr/local/openssl /usr/local/etc/openssl /usr/local/share /usr/lib/ssl /usr/ssl /etc/openssl /etc/pki/ca-trust/extracted/pem /etc/pki/tls /etc/ssl /etc/certs /opt/etc/ssl /data/data/com.termux/files/usr/etc/tls /boot/system/data/ssl -type f \( -name cert.pem -o -name certs.pem -o -name ca-bundle.pem -o -name cacert.pem -o -name ca-certificates.crt -o -name ca-certificates.crt -o -name ca-root-nss.crt -o -name ca-bundle.crt -o -name CARootCertificates.pem -o -name tls-ca-bundle.pem \) -ls' | snap run --shell pipe2drive  || true
+
+      - name: Run snap (pipe2drive) and upload unencrypted file
         env:
           RUST_BACKTRACE: 1
           PIPE2DRIVE_CLIENT_SECRET_DATA: ${{ secrets.PIPE2DRIVE_CLIENT_SECRET_DATA }}
           PIPE2DRIVE_CLIENT_TOKEN_DATA: ${{ secrets.PIPE2DRIVE_CLIENT_TOKEN_DATA }}
-        run: |
-          # Install the snap package pipe2drive
-          sudo snap install --dangerous ${{ steps.snapcraft.outputs.snap }}
-          
-          # Show sorted list of all environment variables in the snap - pipe2drive
-          echo '=== Environment Variables in the snap: Begin ==='
-          echo env | snap run --shell pipe2drive | sort
-          echo '=== Environment Variables in the snap: End ===
-          
-          # Search for the Mozilla root certificate in the snap - pipe2drive
-          echo '=== Look for certificates file: Begin ==='
-          echo find '/var/ssl /usr/share/ssl /usr/local/ssl /usr/local/openssl /usr/local/etc/openssl /usr/local/share /usr/lib/ssl /usr/ssl /etc/openssl /etc/pki/ca-trust/extracted/pem /etc/pki/tls /etc/ssl /etc/certs /opt/etc/ssl /data/data/com.termux/files/usr/etc/tls /boot/system/data/ssl -type f \( -name cert.pem -o -name certs.pem -o -name ca-bundle.pem -o -name cacert.pem -o -name ca-certificates.crt -o -name ca-certificates.crt -o -name ca-root-nss.crt -o -name ca-bundle.crt -o -name CARootCertificates.pem -o -name tls-ca-bundle.pem \) -ls || true' | snap run --shell pipe2drive
-          echo '=== Look for certificates file: End ==='
-          
-          # Run snap (pipe2drive) and upload unencrypted file          
-          snap run pipe2drive upload --replace --size 100mib --filename testing_snap_build_${{ matrix.arch }}.txt --testing --testing-size 90mib
+        run: snap run pipe2drive upload --replace --size 100mib --filename testing_snap_build_${{ matrix.arch }}.txt --testing --testing-size 90mib
 
-          # Run snap (pipe2drive) and upload encrypted file          
-          snap run pipe2drive upload --replace --size 100mib --filename testing_snap_build_${{ matrix.arch }}_encrypted.txt --testing --testing-size 90mib
+      - name: Run snap (pipe2drive) and upload encrypted file
+        env:
+          RUST_BACKTRACE: 1
+          PIPE2DRIVE_CLIENT_SECRET_DATA: ${{ secrets.PIPE2DRIVE_CLIENT_SECRET_DATA }}
+          PIPE2DRIVE_CLIENT_TOKEN_DATA: ${{ secrets.PIPE2DRIVE_CLIENT_TOKEN_DATA }}
+        run: snap run pipe2drive upload --replace --size 100mib --filename testing_snap_build_${{ matrix.arch }}_encrypted.txt --testing --testing-size 90mib
 
       - uses: actions/upload-artifact@v3
         with:
