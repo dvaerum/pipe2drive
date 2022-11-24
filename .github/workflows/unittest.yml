@@ -153,3 +153,16 @@ jobs:
           labels: |
             new-release
           token: ${{ secrets.TOKEN_GITHUB }}
+
+      - name: Run the Action
+        uses: devops-infra/action-pull-request@v0.5.3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          source_branch: ${{ github.ref_name }}
+          target_branch: main
+          title: Merge dev to main and bump the version to ${{ steps.get-tag-if-any.outputs.tag }}"
+          body: |
+            This pull request was automatically created by GitHub Action.
+            This pull request will merge dev to main and bump the version to ${{ steps.get-tag-if-any.outputs.tag }}.
+          label: enhancement
+          allow_no_diff: false
