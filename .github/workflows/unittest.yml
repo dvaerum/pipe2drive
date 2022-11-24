@@ -7,8 +7,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - run: echo '${{ github.ref_name }}'
-
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
@@ -41,6 +39,9 @@ jobs:
         id: snapcraft
 
       - run: |
+          find ~/ -ls
+
+      - run: |
           sudo snap install --dangerous ${{ steps.snapcraft.outputs.snap }}
           snap run pipe2drive --version
           snap run pipe2drive upload --replace --size 100mib --filename testing_snap_build.txt --testing --testing-size 90mib
@@ -57,3 +58,35 @@ jobs:
         with:
           snap: ${{ steps.snapcraft.outputs.snap }}
           release: edge
+
+  merge-dev-to-main-branch:
+    needs: [unittest,snapcraft]
+    if : ${{ github.ref_name == 'dev' }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Run read-yaml action
+        id: snapcraft-version
+        uses: jbutcher5/read-yaml@main
+        with:
+          file: './snap/snapcraft.yaml'
+          key: version
+
+      - name: Run read-yaml action
+        id: snapcraft-version
+        uses: jbutcher5/read-yaml@main
+        with:
+          file: './snap/snapcraft.yaml'
+          key: version
+
+      - uses: dangdennis/toml-action@main
+        id: cargo-version
+        with:
+          file: 'Cargo.toml'
+          field: 'package.version'
+
+      - run: |
+          echo "snapcraft version: ${{ steps.snapcraft-version.outputs.data }}"
+          echo "cargo version: ${{ steps.cargo-version.outputs.value }}"
+          echo "github ref type: ${{ github.ref_type }}"
+          echo "github ref name: ${{ github.ref_name }}"
