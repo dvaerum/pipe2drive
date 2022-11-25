@@ -44,7 +44,6 @@ jobs:
           path: ~/.config/pipe2drive
 
   snapcraft:
-    needs: [unittest]
     runs-on: ubuntu-latest
     strategy:
       matrix:
