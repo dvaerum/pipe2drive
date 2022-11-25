@@ -161,7 +161,7 @@ jobs:
 
       - name: Make pull request to merge dev to main
         if: >-
-          ${{ steps.get-tag-if-any.outputs.tag != 'NO_TAGS' && }}
+          ${{ steps.get-tag-if-any.outputs.tag != 'NO_TAGS' &&
               steps.get-tag-if-any.outputs.tag == format('v{0}', steps.snapcraft-version.outputs.data) && 
               steps.get-tag-if-any.outputs.tag == format('v{0}', steps.cargo-version.outputs.value) }}
         uses: devops-infra/action-pull-request@v0.5.3
