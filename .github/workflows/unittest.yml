@@ -21,12 +21,14 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: actions-rs/toolchain@v1
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           override: true
 
-      - uses: actions-rs/cargo@v1
+      - name: Cargo - Run Unittests
+        uses: actions-rs/cargo@v1
         env:
           RUST_BACKTRACE: 1
           PIPE2DRIVE_CLIENT_SECRET_DATA: ${{ secrets.PIPE2DRIVE_CLIENT_SECRET_DATA }}
@@ -35,7 +37,8 @@ jobs:
           command: test
           args: -- --test-threads=1 --nocapture
 
-      - uses: actions/upload-artifact@v3
+      - name: Upload configs from pipe2drive created by unittests
+        uses: actions/upload-artifact@v3
         with:
           name: pipe2drive-config-folder-from-host-system
           path: ~/.config/pipe2drive
@@ -114,20 +117,21 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Run read-yaml action
+      - name: Get the version set in snapcraft.yaml
         id: snapcraft-version
         uses: jbutcher5/read-yaml@main
         with:
           file: './snap/snapcraft.yaml'
           key-path: '["version"]'
 
-      - uses: dangdennis/toml-action@main
+      - name: Get the version set in Cargo.toml
+        uses: dangdennis/toml-action@main
         id: cargo-version
         with:
           file: 'Cargo.toml'
           field: 'package.version'
 
-      - name: Find Tag
+      - name: Find version tag
         id: get-tag-if-any
         uses: digital-ai/query-tag-action@v2
         with:
@@ -136,7 +140,8 @@ jobs:
           commit-ish: 'HEAD'
           exact-match: 'true'
 
-      - run: >-
+      - name: Print out the version found in different locations
+        run: >-
           echo " 
           snapcraft version: ${{ steps.snapcraft-version.outputs.data }}
           -
