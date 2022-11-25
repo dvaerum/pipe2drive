@@ -51,9 +51,15 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+#      - name: Build snap
+#        uses: snapcore/action-build@v1
+#        id: snapcraft
+
       - name: Build snap
-        uses: snapcore/action-build@v1
+        uses: diddlesnaps/snapcraft-multiarch-action@v1.7.0
         id: snapcraft
+        with:
+          architecture: ${{ matrix.platform }}
 
       - name: Upload snap as an artifact
         uses: actions/upload-artifact@v3
