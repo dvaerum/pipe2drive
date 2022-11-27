@@ -44,16 +44,16 @@ jobs:
           path: ~/.config/pipe2drive
 
   snapcraft:
+    name: Build on ${{ matrix.distro }} ${{ matrix.arch }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        arch: [amd64, arm64, armhf]
+        include:
+          - arch: amd64
+            distro: ubuntu_latest
+
     steps:
       - uses: actions/checkout@v3
-
-#      - name: Build snap
-#        uses: snapcore/action-build@v1
-#        id: snapcraft
 
       - name: Build snap
         uses: diddlesnaps/snapcraft-multiarch-action@v1
@@ -79,19 +79,14 @@ jobs:
       - name: Search for the Mozilla root certificate in the snap - pipe2drive
         run: echo 'find /var/ssl /usr/share/ssl /usr/local/ssl /usr/local/openssl /usr/local/etc/openssl /usr/local/share /usr/lib/ssl /usr/ssl /etc/openssl /etc/pki/ca-trust/extracted/pem /etc/pki/tls /etc/ssl /etc/certs /opt/etc/ssl /data/data/com.termux/files/usr/etc/tls /boot/system/data/ssl -type f \( -name cert.pem -o -name certs.pem -o -name ca-bundle.pem -o -name cacert.pem -o -name ca-certificates.crt -o -name ca-certificates.crt -o -name ca-root-nss.crt -o -name ca-bundle.crt -o -name CARootCertificates.pem -o -name tls-ca-bundle.pem \) -ls' | snap run --shell pipe2drive  || true
 
-      - name: Run snap (pipe2drive) and upload unencrypted file
+      - name: Test snap (pipe2drive). Upload unencrypted & encrypted file
         env:
           RUST_BACKTRACE: 1
           PIPE2DRIVE_CLIENT_SECRET_DATA: ${{ secrets.PIPE2DRIVE_CLIENT_SECRET_DATA }}
           PIPE2DRIVE_CLIENT_TOKEN_DATA: ${{ secrets.PIPE2DRIVE_CLIENT_TOKEN_DATA }}
-        run: snap run pipe2drive upload --replace --size 100mib --filename testing_snap_build_${{ matrix.arch }}.txt --testing --testing-size 90mib
-
-      - name: Run snap (pipe2drive) and upload encrypted file
-        env:
-          RUST_BACKTRACE: 1
-          PIPE2DRIVE_CLIENT_SECRET_DATA: ${{ secrets.PIPE2DRIVE_CLIENT_SECRET_DATA }}
-          PIPE2DRIVE_CLIENT_TOKEN_DATA: ${{ secrets.PIPE2DRIVE_CLIENT_TOKEN_DATA }}
-        run: snap run pipe2drive upload --replace --size 100mib --filename testing_snap_build_${{ matrix.arch }}_encrypted.txt --testing --testing-size 90mib
+        run: |
+          snap run pipe2drive upload --replace --size 100mib --filename testing_snap_build_${{ matrix.arch }}.txt --testing --testing-size 90mib
+          snap run pipe2drive upload --replace --size 100mib --filename testing_snap_build_${{ matrix.arch }}_encrypted.txt --testing --testing-size 90mib
 
       - name: Upload configs from pipe2drive created by the snap
         uses: actions/upload-artifact@v3
@@ -115,8 +110,209 @@ jobs:
           name: pipe2drive-snap-upload-log.${{ matrix.arch }}
           path: ~/.cache/snapcraft/log
 
+  snapcraft-multi-arch:
+    name: Build on ${{ matrix.distro }} ${{ matrix.arch }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - arch: armv7
+            distro: ubuntu_latest
+          - arch: aarch64
+            distro: ubuntu_latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: uraimo/run-on-arch-action@v2
+        name: Build artifact
+        id: build
+        with:
+          arch: ${{ matrix.arch }}
+          distro: ${{ matrix.distro }}
+
+          # Not required, but speeds up builds
+          githubToken: ${{ github.token }}
+
+          # Create an artifacts directory
+          setup: |
+            mkdir -p "${PWD}/.artifacts"
+
+          # Mount the artifacts directory as /artifacts in the container
+          dockerRunArgs: |
+            --volume "${PWD}/.artifacts:/artifacts"
+            --volume "${PWD}:/code"
+
+            --tmpfs /run
+            --tmpfs /run/lock
+            --tmpfs /tmp
+
+            --privileged
+            --cap-add SYS_ADMIN
+            --device=/dev/fuse
+            --security-opt apparmor:unconfined
+            --security-opt seccomp:unconfined
+
+            --volume /sys/fs/cgroup:/sys/fs/cgroup:ro
+            --volume /lib/modules:/lib/modules:ro
+
+          # Pass some environment variables to the container
+          env: | # YAML, but pipe character is necessary
+            artifact_name: git-${{ matrix.distro }}_${{ matrix.arch }}
+
+          # The shell to run commands with in the container
+          shell: /usr/bin/bash
+
+          # Install some dependencies in the container. This speeds up builds if
+          # you are also using githubToken. Any dependencies installed here will
+          # be part of the container image that gets cached, so subsequent
+          # builds don't have to re-install them. The image layer is cached
+          # publicly in your project's package repository, so it is vital that
+          # no secrets are present in the container state or logs.
+          install: |
+            export container=docker
+            export PATH="$PATH:/snap/bin"
+            export LANG=C.UTF-8
+            export LC_ALL=C.UTF-8
+            export DEBIAN_FRONTEND=noninteractive
+
+            apt update
+            apt install --yes fuse snapd snap-confine squashfuse sudo
+            apt autoremove -y
+            apt-get clean
+            rm -f "/usr/bin/systemctl" "/sbin/udevadm"
+
+            dpkg-divert --local --rename --add /sbin/udevadm
+
+            ln -s /bin/true /sbin/udevadm
+            ln -s /var/lib/snapd/snap /snap
+            
+            cat <<'zzzEndOfFilezzz' > /usr/bin/systemctl
+            #!/bin/bash
+            LOG_FILE="/tmp/systemctl.log"
+            LOG_STDERR_FILE="/tmp/systemctl.stderr.log"
+            
+            exec 1> >(tee -a "$LOG_FILE")
+            exec 2> >(tee -a "$LOG_STDERR_FILE" > /dev/null)
+
+            echo "================ (New) ================" >> "$LOG_FILE"
+            echo "systemctl (origin - $#): $@" >> "$LOG_FILE"
+
+            set -eu
+            set -x
+
+
+            #####################
+            # Argument handling #
+            #####################
+            arguments=()
+            while [[ $# -gt 0 ]]; do
+                _arg="$1"
+                case "${_arg}" in
+                    --no-reload)
+                        shift
+                        ;;
+                    *)
+                        arguments+=("${_arg}")
+                        shift
+                        ;;
+                esac
+            done
+            echo "systemctl (${#arguments[@]}):" "${arguments[@]}" >> "$LOG_FILE"
+            ######################
+            # Fake command login #
+            ######################
+            if [ "${#arguments[@]}" -eq 1 ] && [ "${arguments[0]}" == "daemon-reload" ]; then
+                exit 0
+            fi
+            if [ "${#arguments[@]}" -eq 1 ] && [ "${arguments[0]}" == "--version" ]; then
+                echo 'systemd 249 (249.11-0ubuntu3.6)'
+                echo +PAM +AUDIT +SELINUX +APPARMOR +IMA +SMACK +SECCOMP \
+                    +GCRYPT +GNUTLS +OPENSSL +ACL +BLKID +CURL +ELFUTILS \
+                    +FIDO2 +IDN2 -IDN +IPTC +KMOD +LIBCRYPTSETUP +LIBFDISK \
+                    +PCRE2 -PWQUALITY -P11KIT -QRENCODE +BZIP2 +LZ4 +XZ +ZLIB \
+                    +ZSTD -XKBCOMMON +UTMP +SYSVINIT default-hierarchy=unified
+                exit 0
+            fi
+            if [ "${#arguments[@]}" -eq 2 ] && [ "${arguments[0]}" == "is-enabled" ] && [[ "${arguments[1]}" =~ ^snapd.apparmor(.service)?$ ]]; then
+                echo "disabled"
+                exit 0
+            fi
+            if [ "${#arguments[@]}" -eq 2 ] && [ "${arguments[0]}" == "enable" ] && [[ "${arguments[1]}" =~ \.mount$ ]]; then
+                echo "Created symlink /etc/systemd/system/default.target.wants/${arguments[1]} → /etc/systemd/system/${arguments[1]}."
+                echo "Created symlink /etc/systemd/system/multi-user.target.wants/${arguments[1]} → /etc/systemd/system/${arguments[1]}."
+                exit 0
+            fi
+            if [ "${#arguments[@]}" -eq 2 ] && [ "${arguments[0]}" == "disable" ] && [[ "${arguments[1]}" =~ \.mount$ ]]; then
+                echo "Removed /etc/systemd/system/multi-user.target.wants/${arguments[1]}."
+                echo "Removed /etc/systemd/system/default.target.wants/${arguments[1]}."
+                exit 0
+            fi
+            if [ "${#arguments[@]}" -eq 2 ] && [ "${arguments[0]}" == "start" ] && [[ "${arguments[1]}" =~ \.mount$ ]]; then
+                _what=$(grep '^What' "/etc/systemd/system/${arguments[1]}" | cut -f 2 -d '=')
+                _where=$(grep '^Where' "/etc/systemd/system/${arguments[1]}" | cut -f 2 -d '=')
+                _type=$(grep '^Type' "/etc/systemd/system/${arguments[1]}" | cut -f 2 -d '=')
+                _options=$(grep '^Options' "/etc/systemd/system/${arguments[1]}" | cut -f 2 -d '=')
+                echo "### systemD - ${arguments[1]} : Begin" >> "$LOG_FILE"
+                cat "/etc/systemd/system/${arguments[1]}" >> "$LOG_FILE"
+                echo "### systemD - ${arguments[1]} : End" >> "$LOG_FILE"
+                mkdir -vp "${_where}" >> "$LOG_FILE"
+                mount --verbose --types "${_type}" --options "${_options}" "${_what}" "${_where}" >> "$LOG_FILE" 2>&1
+                exit 0
+            fi
+            if [ "${#arguments[@]}" -eq 2 ] && [ "${arguments[0]}" == "stop" ] && [[ "${arguments[1]}" =~ \.mount$ ]]; then
+                _where=$(grep Where "/etc/systemd/system/${arguments[1]}" | cut -f 2 -d '=')
+                umount -v "${_where}" >> "$LOG_FILE" 2>&1
+                exit 0
+            fi
+            echo ">>> ERROR: Unknown how to handle this argument" >> "$LOG_FILE"
+            echo "systemctl (${#arguments[@]}):" "${arguments[@]}" >> "$LOG_FILE"
+            zzzEndOfFilezzz
+            chmod 755 /usr/bin/systemctl
+
+          run: |
+            while true; do [ ! -e /run/snapd.socket ] && /usr/lib/snapd/snapd; done &
+            while sleep 0.1; do [ -e /run/snapd.socket ] && break; done && snap install --classic snapcraft
+
+            mv -v pipe2drive_*.snap /artifacts/pipe2drive.snap
+            snap install --dangerous /artifacts/pipe2drive.snap
+
+            snap run pipe2drive upload --replace --size 100mib --filename testing_snap_build_${{ matrix.arch }}.txt --testing --testing-size 90mib
+            snap run pipe2drive upload --replace --size 100mib --filename testing_snap_build_${{ matrix.arch }}_encrypted.txt --testing --testing-size 90mib
+            
+            mv -v "$HOME/snap/pipe2drive/common/.config/pipe2drive" /artifacts/pipe2drive-config
+            mv -v "$HOME/.cache/snapcraft/log" /artifacts/pipe2drive-log
+
+      - name: Upload snap as an artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: pipe2drive.${{ matrix.arch }}.snap
+          path: .artifacts/pipe2drive.snap
+
+      - name: Upload configs from pipe2drive created by the snap
+        uses: actions/upload-artifact@v3
+        with:
+          name: pipe2drive-config-folder-from-the-snap.${{ matrix.arch }}
+          path: .artifacts/pipe2drive-config
+
+      - name: Upload Snap (edge)
+        if: ${{ github.ref_name == 'dev' }}
+        uses: snapcore/action-publish@v1
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+        with:
+          snap: .artifacts/pipe2drive.snap
+          release: edge
+
+      - name: Upload snapcraft log
+        uses: actions/upload-artifact@v3
+        if: ${{ github.ref_name == 'dev' }}
+        with:
+          name: pipe2drive-snap-upload-log.${{ matrix.arch }}
+          path: .artifacts/pipe2drive-log
+
   merge-dev-to-main-branch:
-    needs: [unittest,snapcraft]
+    needs: [unittest,snapcraft,snapcraft-multi-arch]
     if : ${{ github.ref_name == 'dev' }}
     runs-on: ubuntu-latest
     steps:
