@@ -7,3 +7,7 @@ pipe2drive.iml
 /google-apis-rs
 /.vscode/
 /.gradle/
+/parts
+/prime
+/stage
+/target

@@ -195,7 +195,7 @@ jobs:
             exec 1> >(tee -a "$LOG_FILE")
             exec 2> >(tee -a "$LOG_STDERR_FILE" > /dev/null)
 
-            echo "================ (New) ================" >> "$LOG_FILE"
+            echo "================ (New - $(date --iso-8601=s)) ================" >> "$LOG_FILE"
             echo "systemctl (origin - $#): $@" >> "$LOG_FILE"
 
             set -eu
@@ -272,7 +272,12 @@ jobs:
 
           run: |
             while true; do [ ! -e /run/snapd.socket ] && /usr/lib/snapd/snapd; done &
-            while sleep 0.1; do [ -e /run/snapd.socket ] && break; done && snap install --classic snapcraft
+
+            while true; do snap version && break || true; done
+            sleep 1
+            snap install --classic snapcraft
+
+            snapcraft --destructive-mode
 
             mv -v pipe2drive_*.snap /artifacts/pipe2drive.snap
             snap install --dangerous /artifacts/pipe2drive.snap
