@@ -1,0 +1,11 @@
+
+
+workflow:
+  steps:
+    - branch_package:
+        source_project: home:dvaerum
+        source_package: pipe2drive
+
+  filters:
+    event: push
+
